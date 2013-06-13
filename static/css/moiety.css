@@ -9,7 +9,7 @@ body
 	width: 608px;
 	height: 392px;
 	margin: auto;
-	border: 2px solid #400;
+	border-radius: 10px;
 }
 
 #console
@@ -21,7 +21,7 @@ body
 	color: #aaa;
 	font-family: sans-serif;
 	font-size: 0.8em;
-	border: 2px solid #400;
+	border: 1px solid #400;
 }
 
 #console a:link, #console a:visited
