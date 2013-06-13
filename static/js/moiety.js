@@ -54,6 +54,9 @@ function loadResource(stack, type, id) {
 		img.onload = function() {
 			d.resolve(img);
 		};
+		img.onerror = function() {
+			d.reject();
+		};
 		p = d.promise();
 		break;
 	default:
