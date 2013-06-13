@@ -156,9 +156,11 @@
 			extern.typer = typer;
 			extern.scrollToBottom = scrollToBottom;
 			extern.message = function(msg,className) {
-				promptBox.detach();
+				if (acceptInput)
+					promptBox.detach();
 				message(msg,className);
-				inner.append(promptBox);
+				if (acceptInput)
+					inner.append(promptBox);
 			};
 		})();
 
@@ -525,7 +527,10 @@
 		function message(msg,className) {
 			var mesg = $('<div class="jquery-console-message"></div>');
 			if (className) mesg.addClass(className);
-			mesg.filledText(msg).hide();
+			if (typeof(msg) == "object")
+				mesg.append(msg).hide();
+			else
+				mesg.filledText(msg).hide();
 			inner.append(mesg);
 			mesg.show();
 		};

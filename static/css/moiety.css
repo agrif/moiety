@@ -24,6 +24,12 @@ body
 	border: 2px solid #400;
 }
 
+#console a:link
+{
+	color: #aaa;
+	font-weight: bold;
+}
+
 #console div.jquery-console-inner
 {
 	height: 100px;
@@ -46,4 +52,47 @@ body
 #console .jquery-console-message-error
 {
 	color: #e00;
+}
+
+.status
+{
+	display: inline;
+	background-color: #000;
+	font-size: 0.4em;
+	border-radius: 4px;
+	padding: 1px;
+	margin-left: 0.7em;
+	color: black;
+	border: 1px solid black;
+	font-weight: bold;
+}
+
+.status-pending:before
+{
+	content: "pending";
+}
+
+.status-pending
+{
+	background-color: yellow;
+}
+
+.status-done:before
+{
+	content: "done";
+}
+
+.status-done
+{
+	background-color: green;
+}
+
+.status-failed:before
+{
+	content: "failed";
+}
+
+.status-failed
+{
+	background-color: red;
 }
