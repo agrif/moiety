@@ -77,7 +77,7 @@ def json_view(func):
     @functools.wraps(func)
     def inner(*args, **kwargs):
         resp = func(*args, **kwargs)
-        return json.dumps(resp)
+        return json.dumps(resp, ensure_ascii=False)
     return inner
 
 @resource_url('tBMP')
@@ -206,7 +206,7 @@ def PLST(r, stack, id):
         left, right, top, bottom = r.rect(i)
         bitmap_id = r.bitmap_id(i)
         obj = dict(left=left, right=right, top=top, bottom=bottom)
-        obj['bitmap'] = url_for('tBMP', stack=stack, id=bitmap_id)
+        obj['bitmap'] = bitmap_id
         resp.append(obj)
     return resp
 

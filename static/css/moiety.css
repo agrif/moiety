@@ -24,10 +24,16 @@ body
 	border: 2px solid #400;
 }
 
-#console a:link
+#console a:link, #console a:visited
 {
 	color: #aaa;
 	font-weight: bold;
+	text-decoration: none;
+}
+
+#console a:hover
+{
+	text-decoration: underline;
 }
 
 #console div.jquery-console-inner
