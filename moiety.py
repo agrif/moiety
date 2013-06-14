@@ -197,51 +197,50 @@ def CARD(r, stack, id):
     resp['script'] = structure_script(r.script)
     return resp
 
+def json_record_list(f):
+    @functools.wraps(f)
+    @json_view
+    def inner(r, *args, **kwargs):
+        # these record-based types start at 1, so use a dummy object for 0
+        resp = [{}]
+        for i in range(1, r.records + 1):
+            obj = f(i, r, *args, **kwargs)
+            resp.append(obj)
+        return resp
+    return inner
+
 @resource_url('PLST')
-@json_view
-def PLST(r, stack, id):
-    # PLST records start at 1, so use a dummy object for 0
-    resp = [{}]
-    for i in range(1, r.records + 1):
-        left, right, top, bottom = r.rect(i)
-        bitmap_id = r.bitmap_id(i)
-        obj = dict(left=left, right=right, top=top, bottom=bottom)
-        obj['bitmap'] = bitmap_id
-        resp.append(obj)
-    return resp
+@json_record_list
+def PLST(i, r, stack, id):
+    left, right, top, bottom = r.rect(i)
+    bitmap_id = r.bitmap_id(i)
+    obj = dict(left=left, right=right, top=top, bottom=bottom)
+    obj['bitmap'] = bitmap_id
+    return obj
 
 @resource_url('BLST')
-@json_view
-def BLST(r, stack, id):
-    # BLST records start at 1, so use a dummy object for 0
-    resp = [{}]
-    for i in range(1, r.records + 1):
-        enabled = r.enabled(i)
-        hotspot_id = r.hotspot_id(i)
-        obj = dict(enabled=enabled, hotspot_id=hotspot_id)
-        resp.append(obj)
-    return resp
+@json_record_list
+def BLST(i, r, stack, id):
+    enabled = r.enabled(i)
+    hotspot_id = r.hotspot_id(i)
+    return dict(enabled=enabled, hotspot_id=hotspot_id)
 
 @resource_url('HSPT')
-@json_view
-def HSPT(r, stack, id):
-    # HSPT records start at 1, so use a dummy object for 0
-    resp = [{}]
-    for i in range(1, r.records + 1):
-        blst_id = r.blst_id(i)
-        name_record = r.name_record(i)
-        left, right, top, bottom = r.rect(i)
-        cursor = r.cursor(i)
-        zip_mode = r.zip_mode(i)
-        script = r.script(i)
-        obj = dict(left=left, right=right, top=top, bottom=bottom)
-        obj['blst_id'] = blst_id
-        obj['name'] = name_record
-        obj['cursor'] = cursor
-        obj['zip_mode'] = zip_mode
-        obj['script'] = structure_script(script)
-        resp.append(obj)
-    return resp
+@json_record_list
+def HSPT(i, r, stack, id):
+    blst_id = r.blst_id(i)
+    name_record = r.name_record(i)
+    left, right, top, bottom = r.rect(i)
+    cursor = r.cursor(i)
+    zip_mode = r.zip_mode(i)
+    script = r.script(i)
+    obj = dict(left=left, right=right, top=top, bottom=bottom)
+    obj['blst_id'] = blst_id
+    obj['name'] = name_record
+    obj['cursor'] = cursor
+    obj['zip_mode'] = zip_mode
+    obj['script'] = structure_script(script)
+    return obj
 
 @app.route("/")
 def main():
