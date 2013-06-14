@@ -244,7 +244,7 @@ def HSPT(r, stack, id):
     return resp
 
 @app.route("/")
-def hello():
+def main():
     return render_template('index.html')
 
 if __name__ == '__main__':
