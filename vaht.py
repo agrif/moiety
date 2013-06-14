@@ -248,6 +248,10 @@ class Archive(VahtCountedObject):
             return CARD.open(r)
         elif r.type == 'PLST':
             return PLST.open(r)
+        elif r.type == 'BLST':
+            return BLST.open(r)
+        elif r.type == 'HSPT':
+            return HSPT.open(r)
         
         return r
 
@@ -320,7 +324,7 @@ class BMP(VahtObject):
     def open(cls, resource):
         obj = cls._open(resource)
         if not obj:
-            raise RuntimeError("could not open BMP")
+            raise RuntimeError("could not open tBMP")
         return cls(obj)
     
     @property
@@ -360,7 +364,7 @@ class MOV(VahtObject):
     def open(cls, resource):
         obj = cls._open(resource)
         if not obj:
-            raise RuntimeError("could not open MOV")
+            raise RuntimeError("could not open tMOV")
         return cls(obj)
     
     def read(self, size):
@@ -396,7 +400,7 @@ class WAV(VahtObject):
     def open(cls, resource):
         obj = cls._open(resource)
         if not obj:
-            raise RuntimeError("could not open WAV")
+            raise RuntimeError("could not open tWAV")
         return cls(obj)
     
     @property
@@ -495,7 +499,7 @@ class CARD(VahtObject):
     
     @property
     def zip_mode(self):
-        return self._zip_mode(self)
+        return bool(self._zip_mode(self))
     
     @property
     def script(self):
@@ -515,14 +519,14 @@ class PLST(VahtObject):
         records = (c_uint16, [c_void_p])
         bitmap_id = (c_int32, [c_void_p, c_uint16])
         bitmap_open = (c_void_p, [c_void_p, c_uint16])
-        rect = (c_void_p, [c_void_p, c_uint16,
-                           c_void_p, c_void_p, c_void_p, c_void_p])
+        rect = (None, [c_void_p, c_uint16,
+                       c_void_p, c_void_p, c_void_p, c_void_p])
     
     @classmethod
     def open(cls, resource):
         obj = cls._open(resource)
         if not obj:
-            raise RuntimeError("could not open NAME")
+            raise RuntimeError("could not open PLST")
         return cls(obj)
     
     @property
@@ -624,3 +628,91 @@ class Command(VahtObject):
         count = self._branch_count(self)
         return [self._from_ptr_array(self._branch_body(self, i), owner=self)
                 for i in range(count)]
+
+##
+## vaht_blst.h
+##
+
+class BLST(VahtObject):
+    class Methods:
+        open = (c_void_p, [c_void_p])
+        close = (None, [c_void_p])
+        records = (c_uint16, [c_void_p])
+        enabled = (c_uint16, [c_void_p, c_uint16])
+        hotspot_id = (c_int32, [c_void_p, c_uint16])
+    
+    @classmethod
+    def open(cls, resource):
+        obj = cls._open(resource)
+        if not obj:
+            raise RuntimeError("could not open BLST")
+        return cls(obj)
+    
+    @property
+    def records(self):
+        return self._records(self)
+    
+    def enabled(self, i):
+        return bool(self._enabled(self, i))
+    
+    def hotspot_id(self, i):
+        id = self._hotspot_id(self, i)
+        if id < 0:
+            raise IndexError("invalid index")
+        return id
+
+##
+## vaht_hspt.h
+##
+
+class HSPT(VahtObject):
+    class Methods:
+        open = (c_void_p, [c_void_p])
+        close = (None, [c_void_p])
+        records = (c_uint16, [c_void_p])
+        blst_id = (c_uint16, [c_void_p, c_uint16])
+        name_record = (c_int16, [c_void_p, c_uint16])
+        name = (c_char_p, [c_void_p, c_uint16])
+        rect = (None, [c_void_p, c_uint16,
+                       c_void_p, c_void_p, c_void_p, c_void_p])
+        cursor = (c_uint16, [c_void_p, c_uint16])
+        zip_mode = (c_uint16, [c_void_p, c_uint16])
+        script = (c_void_p, [c_void_p, c_uint16])
+
+    @classmethod
+    def open(cls, resource):
+        obj = cls._open(resource)
+        if not obj:
+            raise RuntimeError("could not open HSPT")
+        return cls(obj)
+    
+    @property
+    def records(self):
+        return self._records(self)
+    
+    def blst_id(self, i):
+        return self._blst_id(self, i)
+    
+    def name_record(self, i):
+        return self._name_record(self, i)
+    
+    def name(self, i):
+        return self._name(self, i)
+    
+    def rect(self, i):
+        left = c_int16()
+        right = c_int16()
+        top = c_int16()
+        bottom = c_int16()
+        self._rect(self, i, ctypes.byref(left), ctypes.byref(right),
+                   ctypes.byref(top), ctypes.byref(bottom))
+        return (left.value, right.value, top.value, bottom.value)
+    
+    def cursor(self, i):
+        return self._cursor(self, i)
+    
+    def zip_mode(self, i):
+        return bool(self._zip_mode(self, i))
+    
+    def script(self, i):
+        return Script(self._script(self, i), owner=self)
