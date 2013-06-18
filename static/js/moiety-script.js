@@ -1,4 +1,8 @@
 var scriptCommands = {
+	'activate-blst': function(record) {
+		state.activateBLST(record);
+	},
+	
 	'activate-plst': function(record) {
 		state.activatePLST(record);
 	},
@@ -15,6 +19,10 @@ var scriptCommands = {
 	
 	'goto-card': function(cardid) {
 		state.gotoCard(state.stackname, cardid);
+	},
+	
+	'reload': function() {
+		state.gotoCard(state.stackname, state.cardid);
 	},
 	
 	'set-cursor': function(cursorid) {

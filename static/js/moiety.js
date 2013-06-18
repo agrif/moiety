@@ -102,8 +102,9 @@ var state = {
 	},
 
 	gotoCard: function(stackname, cardid) {
-		if (stackname == state.stackname && cardid == state.cardid)
-			return jQuery.Deferred().resolve();
+		// currently gotoCard is used for reload, so *don't do this!*
+		//if (stackname == state.stackname && cardid == state.cardid)
+		//	return jQuery.Deferred().resolve();
 		
 		// unload current card
 		var unload;
@@ -239,6 +240,16 @@ var state = {
 		} else {
 			state.canvas.style.cursor = "pointer";
 		}
+	},
+	
+	activateBLST: function(i) {
+		var record = state.blst[i];
+		jQuery.each(state.hspt, function(index, h) {
+			if (h.blst_id == record.hotspot_id) {
+				if (!h.zip_mode)
+					h.enabled = record.enabled;
+			}
+		});
 	},
 	
 	activatePLST: function(i) {
