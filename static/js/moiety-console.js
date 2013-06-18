@@ -69,6 +69,10 @@ var ConsoleView = Backbone.View.extend({
 	
 	handle: function(line, report) {
 		args = this.splitCommand(line);
+		args = jQuery.grep(args, function(v) {
+			return Boolean(v);
+		});
+		
 		function doerror(msg) {
 			report([{msg: args[0] + ': ' + msg,
 					 className: "jquery-console-message-error"}]);
