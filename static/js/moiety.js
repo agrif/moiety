@@ -21,7 +21,11 @@ var state = {
 	hspt: null,
 	
 	// variable storage
-	variables: {},
+	variables: {
+		// initial state of the lake sub access points
+		jbridge1: 1,
+		jbridge4: 1,
+	},
 	
 	// the hotspot the mouse is in
 	currentHotspot: null,
