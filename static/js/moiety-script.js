@@ -5,7 +5,7 @@ var scriptCommands = {
 	
 	'call': function(nameid, argumentCount) {
 		var name = state.commandNames[nameid];
-		var args = Array(arguments).slice(2, 2 + argumentCount);
+		var args = Array.prototype.slice.call(arguments, 2, 2 + argumentCount);
 		if (name in externalCommands) {
 			return externalCommands[name].apply(externalCommands, args);
 		} else {
