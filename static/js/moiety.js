@@ -26,38 +26,18 @@ var ConsoleView = Backbone.View.extend({
 					 className: "jquery-console-message-error"}]);
 		}
 		
-		switch (args[0]) {
-		case "load":
-			if (args.length != 4) {
-				doerror("incorrect arguments");
-			} else {
-				loadResource(args[1], args[2], args[3]);
+		if (args[0] in consoleCommands) {
+			try {
+				consoleCommands[args[0]].apply(consoleCommands, args.slice(1));
+			} catch (err) {
+				doerror(err);
+				return;
 			}
-			break;
-		case "goto-card":
-			var stackname, cardid;
-			if (args.length == 2) {
-				stackname = state.stackname;
-				cardid = parseInt(args[1]);
-				state.gotoCard(stackname, cardid);
-			} else if (args.length == 3) {
-				stackname = args[1];
-				cardid = parseInt(args[2]);
-				state.gotoCard(stackname, cardid);
-			} else {
-				doerror("incorrect arguments");
-			}
-			break;
-		case "activate-plst":
-			if (args.length != 2) {
-				doerror("incorrect arguments");
-			} else {
-				state.activatePLST(parseInt(args[1]));
-			}
-			break;
-		default:
+		} else {
 			doerror("invalid command");
+			return;
 		}
+		
 		return "";
 	},
 	
@@ -81,6 +61,45 @@ var ConsoleView = Backbone.View.extend({
 		});	
 	}
 });
+
+var consoleCommands = {
+	'load': function(stack, type, id) {
+		if (arguments.length != 3) throw "invalid arguments";
+		loadResource(stack, type, id);
+	},
+	
+	'goto-card': function(stackname, cardid) {
+		if (arguments.length != 2) throw "invalid arguments";
+		state.gotoCard(stackname, cardid);
+	},
+	
+	'activate-plst': function(plstid) {
+		if (arguments.length != 1) throw "invalid arguments";
+		state.activatePLST(parseInt(plstid));
+	}
+};
+
+var scriptCommands = {
+	'goto-card': function(cardid) {
+		state.gotoCard(state.stackname, cardid);
+	},
+	
+	'call': function(nameid, argumentCount) {
+		var name = state.commandNames[nameid];
+		var args = Array(arguments).slice(2, 2 + argumentCount);
+		if (name in externalCommands) {
+			return externalCommands[name].apply(externalCommands, args);
+		} else {
+			console.message("!!! (stub call) " + name + " " + args.toString());			
+		}
+	}
+};
+
+var externalCommands = {
+	'xasetupcomplete': function() {
+		state.gotoCard("aspit", 1);
+	}
+};
 
 var state = {
 	// stuff from setup()
@@ -241,22 +260,12 @@ var state = {
 			// TODO
 			console.message("!!! (stub branch)");
 		} else {
-			switch (cmd.name) {
-			case "goto-card":
-				state.gotoCard(state.stackname, cmd.arguments[0]);
-				break;
-			case "call":
-				var name = state.commandNames[cmd.arguments[0]];
-				var callargs = cmd.arguments.slice(2);
-				if (name == "xasetupcomplete") {
-					state.gotoCard("aspit", 1);
-				} else {
-					console.message("!!! (stub call) " + name + " " + callargs);
-				}
-				break;
-			default:
+			if (cmd.name in scriptCommands) {
+				scriptCommands[cmd.name].apply(scriptCommands, cmd.arguments);
+			} else {
 				console.message("!!! (stub) " + cmd.name + " " + cmd.arguments.toString());
 			}
+			
 			state.runScript(commands, index + 1, deferred);
 		}
 	},
