@@ -83,6 +83,11 @@ var ConsoleView = Backbone.View.extend({
 });
 
 var state = {
+	// stuff from setup()
+	ctx: null,
+	canvas: null,
+	
+	// state (in the large)
 	stackname: null,
 	cardid: null,
 	
@@ -96,9 +101,51 @@ var state = {
 	// card stuff
 	card: null,
 	plst: null,
+	blst: null,
+	hspt: null,
+	
+	// the hotspot the mouse is in
+	currentHotspot: null,
+	
+	setup: function(canvas) {
+		state.canvas = canvas[0];
+		state.ctx = state.canvas.getContext("2d");
+		canvas.mousemove(state.onMouseMove);
+		canvas.mousedown(state.onMouseDown);
+	},
+	
+	onMouseMove: function(e) {
+		var x = e.offsetX;
+		var y = e.offsetY;
+		var hotspot = state.getHotspot(x, y);
+		if (hotspot != state.currentHotspot) {
+			if (state.currentHotspot) {
+				//var name = state.hotspotNames[state.currentHotspot.name];
+				//console.message("leaving hotspot " + name);
+				
+				state.setCursor(null);
+			}
+			if (hotspot) {
+				//var name = state.hotspotNames[hotspot.name];
+				//console.message("entering hotspot " + name);
+				
+				state.setCursor(hotspot.cursor);
+			}
+			state.currentHotspot = hotspot;
+		}
+	},
+	
+	onMouseDown: function(e) {
+		var x = e.offsetX;
+		var y = e.offsetY;
+		var hotspot = state.getHotspot(x, y);
+		if (hotspot) {
+			state.runScriptHandler(hotspot.script, "mouse-down");			
+		}
+	},
 
 	changeStack: function(stackname) {
-		if (stackname == this.stackname)
+		if (stackname == state.stackname)
 			return jQuery.Deferred().resolve();
 		
 		// load up global stack resources
@@ -109,7 +156,6 @@ var state = {
 		var pVariables = loadResource(stackname, 'NAME', 4);
 		var pStacks = loadResource(stackname, 'NAME', 5);
 		var d = jQuery.when(pCards, pHotspots, pCommands, pVariables, pStacks)
-		var state = this;
 		d.done(function(cards, hotspots, commands, variables, stacks) {
 			state.stackname = stackname;
 			state.cardid = null;
@@ -125,24 +171,48 @@ var state = {
 	},
 
 	gotoCard: function(stackname, cardid) {
-		if (stackname == this.stackname && cardid == this.cardid)
+		if (stackname == state.stackname && cardid == state.cardid)
 			return jQuery.Deferred().resolve();
 		
 		// unload current card
 		
 		// change stacks
 		var d = jQuery.Deferred();
-		var state = this;
-		this.changeStack(stackname).done(function() {
+		state.changeStack(stackname).done(function() {
 			// load new card
 			console.status("moving to card " + cardid, d);
 			var pCard = loadResource(stackname, 'CARD', cardid);
 			var pPLST = loadResource(stackname, 'PLST', cardid);
-			var when = jQuery.when(pCard, pPLST);
-			when.done(function(card, plst) {
+			var pBLST = loadResource(stackname, 'BLST', cardid);
+			var pHSPT = loadResource(stackname, 'HSPT', cardid);
+			var when = jQuery.when(pCard, pPLST, pBLST, pHSPT);
+			when.done(function(card, plst, blst, hspt) {
+				// set variables
 				state.cardid = cardid;
+				state.currentHotspot = null;
+				state.setCursor(null);
 				state.card = card[0];
 				state.plst = plst[0];
+				state.blst = blst[0];
+				state.hspt = hspt[0];
+				
+				// set up button state
+				var blst_ids = [];
+				jQuery.each(state.blst, function(index, b) {
+					if (index == 0)
+						return;
+					if (jQuery.inArray(b.hotspot_id, blst_ids) == -1)
+						blst_ids.push(b.hotspot_id);
+				});
+				jQuery.each(state.hspt, function(index, h) {
+					if (jQuery.inArray(h.blst_id, blst_ids) == -1) {
+						if (!h.zip_mode)
+							h.enabled = true;
+					} else {
+						h.enabled = false;
+					}
+				});
+				
 				state.activatePLST(1).done(d.resolve).fail(d.reject);
 			}).fail(d.reject);
 		});
@@ -150,12 +220,72 @@ var state = {
 		return d;
 	},
 	
+	runScriptHandler: function(script, handler) {
+		var deferred = jQuery.Deferred();
+		if (handler in script) {
+			state.runScript(script[handler], 0, deferred);
+		} else {
+			deferred.resolve();
+		}
+		return deferred;
+	},
+	
+	runScript: function(commands, index, deferred) {
+		if (index >= commands.length) {
+			deferred.resolve();
+			return;
+		}
+		
+		var cmd = commands[index];
+		if (cmd.name == "branch") {
+			// TODO
+			console.message("!!! (stub branch)");
+		} else {
+			switch (cmd.name) {
+			case "goto-card":
+				state.gotoCard(state.stackname, cmd.arguments[0]);
+				break;
+			case "call":
+				var name = state.commandNames[cmd.arguments[0]];
+				var callargs = cmd.arguments.slice(2);
+				if (name == "xasetupcomplete") {
+					state.gotoCard("aspit", 1);
+				} else {
+					console.message("!!! (stub call) " + name + " " + callargs);
+				}
+				break;
+			default:
+				console.message("!!! (stub) " + cmd.name + " " + cmd.arguments.toString());
+			}
+			state.runScript(commands, index + 1, deferred);
+		}
+	},
+	
+	setCursor: function(cursor) {
+		if (cursor == null) {
+			state.canvas.style.cursor = "default";
+		} else {
+			state.canvas.style.cursor = "pointer";
+		}
+	},
+	
 	activatePLST: function(i) {
-		var ctx = $("#canvas")[0].getContext("2d");
-		var record = this.plst[i];
-		return loadResource(this.stackname, 'tBMP', record.bitmap).done(function(img) {
-			ctx.drawImage(img, record.left, record.top, record.right-record.left, record.bottom-record.top);
+		var record = state.plst[i];
+		return loadResource(state.stackname, 'tBMP', record.bitmap).done(function(img) {
+			state.ctx.drawImage(img, record.left, record.top, record.right-record.left, record.bottom-record.top);
 		});
+	},
+	
+	getHotspot: function(x, y) {
+		var ret = null;
+		jQuery.each(state.hspt, function(i, h) {
+			if (h.enabled &&
+				h.left <= x && x < h.right &&
+				h.top <= y && y < h.bottom) {
+				ret = h;
+			}
+		});
+		return ret;
 	}
 };
 
@@ -187,5 +317,6 @@ function loadResource(stack, type, id) {
 
 $(function() {
 	console = new ConsoleView({el: $("#console")});	
+	state.setup($('#canvas'));
 	state.gotoCard('aspit', 1);
 });
