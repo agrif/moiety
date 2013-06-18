@@ -1,6 +1,6 @@
 var scriptCommands = {
-	'goto-card': function(cardid) {
-		state.gotoCard(state.stackname, cardid);
+	'activate-plst': function(record) {
+		state.activatePLST(record);
 	},
 	
 	'call': function(nameid, argumentCount) {
@@ -11,6 +11,14 @@ var scriptCommands = {
 		} else {
 			console.message("!!! (stub call) " + name + " " + args.toString());			
 		}
+	},
+	
+	'goto-card': function(cardid) {
+		state.gotoCard(state.stackname, cardid);
+	},
+	
+	'set-cursor': function(cursorid) {
+		state.setCursor(cursorid);
 	}
 };
 

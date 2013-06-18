@@ -134,6 +134,11 @@ var state = {
 					state.blst = blst[0];
 					state.hspt = hspt[0];
 					
+					// set up plst state
+					jQuery.each(state.plst, function(index, p) {
+						p.enabled = false;
+					});
+					
 					// set up button state
 					var blst_ids = [];
 					jQuery.each(state.blst, function(index, b) {
@@ -209,7 +214,12 @@ var state = {
 	
 	activatePLST: function(i) {
 		var record = state.plst[i];
+		if (record.enabled) {
+			return jQuery.Deferred().resolve();
+		}
+		
 		return loadResource(state.stackname, 'tBMP', record.bitmap).done(function(img) {
+			record.enabled = true;
 			state.ctx.drawImage(img, record.left, record.top, record.right-record.left, record.bottom-record.top);
 		});
 	},
