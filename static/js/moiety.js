@@ -20,6 +20,9 @@ var state = {
 	blst: null,
 	hspt: null,
 	
+	// variable storage
+	variables: {},
+	
 	// the hotspot the mouse is in
 	currentHotspot: null,
 	
@@ -191,8 +194,20 @@ var state = {
 		
 		var cmd = commands[index];
 		if (cmd.name == "branch") {
-			// TODO
-			console.message("!!! (stub branch)");
+			var varname = state.variableNames[cmd.variable];
+			var value = state.getVariable(varname);
+			var branch = [];
+			if (value in cmd.cases) {
+				branch = cmd.cases[value];
+			} else if (0xffff in cmd.cases) {
+				branch = cmd.cases[0xffff];
+			}
+			
+			var branchend = jQuery.Deferred();
+			state.runScript(branch, 0, branchend);
+			branchend.fail(deferred.reject).done(function() {
+				state.runScript(commands, index + 1, deferred);
+			});
 		} else {
 			if (cmd.name in scriptCommands) {
 				scriptCommands[cmd.name].apply(scriptCommands, cmd.arguments);
@@ -202,6 +217,20 @@ var state = {
 			
 			state.runScript(commands, index + 1, deferred);
 		}
+	},
+	
+	getVariable: function(name) {
+		if (name in state.variables) {
+			console.message("reading " + name + " = " + state.variables[name]);
+			return state.variables[name];
+		}
+		console.message("reading " + name + " = 0 (default)");
+		return 0;
+	},
+	
+	setVariable: function(name, value) {
+		console.message("setting " + name + " = " + value);
+		state.variables[name] = value;
 	},
 	
 	setCursor: function(cursor) {

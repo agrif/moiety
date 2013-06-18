@@ -19,6 +19,11 @@ var scriptCommands = {
 	
 	'set-cursor': function(cursorid) {
 		state.setCursor(cursorid);
+	},
+	
+	'set-var': function(nameid, value) {
+		var name = state.variableNames[nameid];
+		state.setVariable(name, value);
 	}
 };
 
