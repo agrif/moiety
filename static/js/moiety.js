@@ -28,6 +28,7 @@ var state = {
 		state.ctx = state.canvas.getContext("2d");
 		canvas.mousemove(state.onMouseMove);
 		canvas.mousedown(state.onMouseDown);
+		canvas.mousedown(state.onMouseUp);
 	},
 	
 	onMouseMove: function(e) {
@@ -36,18 +37,20 @@ var state = {
 		var hotspot = state.getHotspot(x, y);
 		if (hotspot != state.currentHotspot) {
 			if (state.currentHotspot) {
-				//var name = state.hotspotNames[state.currentHotspot.name];
-				//console.message("leaving hotspot " + name);
-				
+				// leaving state.currentHotspot
 				state.setCursor(null);
+				state.runScriptHandler(state.currentHotspot.script, "mouse-leave");
 			}
 			if (hotspot) {
-				//var name = state.hotspotNames[hotspot.name];
-				//console.message("entering hotspot " + name);
-				
+				// entering hotspot
 				state.setCursor(hotspot.cursor);
+				state.runScriptHandler(hotspot.script, "mouse-enter");
 			}
 			state.currentHotspot = hotspot;
+		}
+		
+		if (hotspot) {
+			state.runScriptHandler(hotspot.script, "mouse-within");
 		}
 	},
 	
@@ -57,6 +60,15 @@ var state = {
 		var hotspot = state.getHotspot(x, y);
 		if (hotspot) {
 			state.runScriptHandler(hotspot.script, "mouse-down");			
+		}
+	},
+	
+	onMouseUp: function(e) {
+		var x = e.offsetX;
+		var y = e.offsetY;
+		var hotspot = state.getHotspot(x, y);
+		if (hotspot) {
+			state.runScriptHandler(hotspot.script, "mouse-up");			
 		}
 	},
 
@@ -91,46 +103,66 @@ var state = {
 			return jQuery.Deferred().resolve();
 		
 		// unload current card
+		var unload;
+		if (state.cardid) {
+			unload = state.runScriptHandler(state.card.script, 'close-card');
+		} else {
+			unload = jQuery.Deferred();
+			unload.resolve();
+		}
 		
-		// change stacks
 		var d = jQuery.Deferred();
-		state.changeStack(stackname).done(function() {
-			// load new card
-			console.status("moving to card " + cardid, d);
-			var pCard = loadResource(stackname, 'CARD', cardid);
-			var pPLST = loadResource(stackname, 'PLST', cardid);
-			var pBLST = loadResource(stackname, 'BLST', cardid);
-			var pHSPT = loadResource(stackname, 'HSPT', cardid);
-			var when = jQuery.when(pCard, pPLST, pBLST, pHSPT);
-			when.done(function(card, plst, blst, hspt) {
-				// set variables
-				state.cardid = cardid;
-				state.currentHotspot = null;
-				state.setCursor(null);
-				state.card = card[0];
-				state.plst = plst[0];
-				state.blst = blst[0];
-				state.hspt = hspt[0];
-				
-				// set up button state
-				var blst_ids = [];
-				jQuery.each(state.blst, function(index, b) {
-					if (index == 0)
-						return;
-					if (jQuery.inArray(b.hotspot_id, blst_ids) == -1)
-						blst_ids.push(b.hotspot_id);
+		unload.fail(d.reject).done(function() {
+			state.cardid = null;
+			
+			// change stacks
+			state.changeStack(stackname).done(function() {
+				// load new card
+				console.status("moving to card " + cardid, d);
+				var pCard = loadResource(stackname, 'CARD', cardid);
+				var pPLST = loadResource(stackname, 'PLST', cardid);
+				var pBLST = loadResource(stackname, 'BLST', cardid);
+				var pHSPT = loadResource(stackname, 'HSPT', cardid);
+				var when = jQuery.when(pCard, pPLST, pBLST, pHSPT);
+				when.fail(d.reject).done(function(card, plst, blst, hspt) {
+					// set variables
+					state.cardid = cardid;
+					state.currentHotspot = null;
+					state.setCursor(null);
+					state.card = card[0];
+					state.plst = plst[0];
+					state.blst = blst[0];
+					state.hspt = hspt[0];
+					
+					// set up button state
+					var blst_ids = [];
+					jQuery.each(state.blst, function(index, b) {
+						if (index == 0)
+							return;
+						if (jQuery.inArray(b.hotspot_id, blst_ids) == -1)
+							blst_ids.push(b.hotspot_id);
+					});
+					jQuery.each(state.hspt, function(index, h) {
+						if (jQuery.inArray(h.blst_id, blst_ids) == -1) {
+							if (!h.zip_mode)
+								h.enabled = true;
+						} else {
+							h.enabled = false;
+						}
+					});
+					
+					// activate plst 1 by default
+					state.activatePLST(1).fail(d.reject).done(function() {
+						// run load-card
+						var lc = state.runScriptHandler(state.card.script, "load-card");
+						lc.fail(d.reject).done(function() {
+							// run open-card
+							var oc = state.runScriptHandler(state.card.script, "open-card");
+							oc.fail(d.reject).done(d.resolve);
+						});
+					});
 				});
-				jQuery.each(state.hspt, function(index, h) {
-					if (jQuery.inArray(h.blst_id, blst_ids) == -1) {
-						if (!h.zip_mode)
-							h.enabled = true;
-					} else {
-						h.enabled = false;
-					}
-				});
-				
-				state.activatePLST(1).done(d.resolve).fail(d.reject);
-			}).fail(d.reject);
+			});
 		});
 		
 		return d;
