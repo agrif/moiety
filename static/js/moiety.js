@@ -239,11 +239,10 @@ var state = {
 	},
 	
 	setCursor: function(cursor) {
-		if (cursor == null) {
-			state.canvas.style.cursor = "default";
-		} else {
-			state.canvas.style.cursor = "pointer";
-		}
+		if (!cursor)
+			cursor = 3000;
+		var url = "/static/cursors/" + cursor + ".png";
+		state.canvas.style.cursor = "url(" + url + "), auto";
 	},
 	
 	activateBLST: function(i) {
