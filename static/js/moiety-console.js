@@ -11,7 +11,58 @@ var resourceTypes = [
 ];
 
 var consoleCommands = {
+	'help': function(cmd) {
+		/** list all commands, or help for a specific command
+			Usage: $command [<command>]
+		*/
+		
+		if (arguments.length > 1) throw "invalid arguments";
+		
+		function extractHelp(name) {
+			if (!(name in consoleCommands))
+				return null;
+			var fun = consoleCommands[name];
+			var sf = String(fun);
+			var matches = sf.match(/\/\*\*([\s\S]*)\*\//m);
+			if (matches)
+				return matches[1].replace('$command', name);
+			return null;
+		}
+		
+		if (cmd) {
+			// command help!
+			var help = extractHelp(cmd);
+			if (help) {
+				console.message(cmd + ' - ' + help);
+			} else {
+				console.message("there is no help for " + cmd);
+			}
+		} else {
+			// command summary!
+			var commands = console.getCommands();
+			for (i in commands) {
+				var help = extractHelp(commands[i]);
+				if (help) {
+					var summary = help.split(/\r?\n/)[0];
+					console.message(commands[i] + ' - ' + summary);
+				} else {
+					console.message(commands[i]);
+				}
+			}
+		}
+	},
+	'complete:help': function(i, part) {
+		if (i == 0) {
+			var commands = console.getCommands();
+			return console.completionsFrom(part, commands);
+		}
+		return [];
+	},
+	
 	'load': function(stack, type, id) {
+		/** loads a given resource
+			Usage: $command <stack> <type> <id>
+		*/
 		if (arguments.length != 3) throw "invalid arguments";
 		loadResource(stack, type, id);
 	},
@@ -26,6 +77,9 @@ var consoleCommands = {
 	},
 	
 	'goto-card': function(stackname, cardid) {
+		/** switches to a different card
+			Usage: $command <stack> <cardid>
+		*/
 		if (arguments.length != 2) throw "invalid arguments";
 		state.gotoCard(stackname, cardid);
 	},
@@ -36,6 +90,9 @@ var consoleCommands = {
 	},
 	
 	'activate-plst': function(plstid) {
+		/** activates a plst record
+			Usage: $command <recordnumber>
+		*/
 		if (arguments.length != 1) throw "invalid arguments";
 		state.activatePLST(parseInt(plstid));
 	}
