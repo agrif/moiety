@@ -1,10 +1,10 @@
 var scriptCommands = {
 	'activate-blst': function(record) {
-		state.activateBLST(record);
+		return state.activateBLST(record);
 	},
 	
 	'activate-plst': function(record) {
-		state.activatePLST(record);
+		return state.activatePLST(record);
 	},
 	
 	'call': function(nameid, argumentCount) {
@@ -18,11 +18,20 @@ var scriptCommands = {
 	},
 	
 	'goto-card': function(cardid) {
-		state.gotoCard(state.stackname, cardid);
+		return state.gotoCard(state.stackname, cardid);
+	},
+	
+	'play-wav': function(wavid, volume, u0) {
+		// ignore volume, since in riven it's almost always 255
+		var d = jQuery.Deferred();
+		loadResource(state.stackname, 'tWAV', wavid).done(function(r) {
+			state.playSound(r).fail(d.reject).done(d.resolve);
+		});
+		return d.promise();
 	},
 	
 	'reload': function() {
-		state.gotoCard(state.stackname, state.cardid);
+		return state.gotoCard(state.stackname, state.cardid);
 	},
 	
 	'set-cursor': function(cursorid) {
@@ -37,6 +46,6 @@ var scriptCommands = {
 
 var externalCommands = {
 	'xasetupcomplete': function() {
-		state.gotoCard("aspit", 1);
+		return state.gotoCard("aspit", 1);
 	}
 };

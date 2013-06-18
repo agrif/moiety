@@ -27,8 +27,14 @@ var state = {
 		jbridge4: 1,
 	},
 	
+	// whether to ignore mouse events
+	ignoreMouse: false,
+	
 	// the hotspot the mouse is in
 	currentHotspot: null,
+	
+	// the last set cursor
+	cursor: 3000,
 	
 	setup: function(canvas) {
 		state.canvas = canvas[0];
@@ -39,6 +45,9 @@ var state = {
 	},
 	
 	onMouseMove: function(e) {
+		if (state.ignoreMouse)
+			return;
+		
 		var x = e.offsetX;
 		var y = e.offsetY;
 		var hotspot = state.getHotspot(x, y);
@@ -62,15 +71,34 @@ var state = {
 	},
 	
 	onMouseDown: function(e) {
+		if (state.ignoreMouse)
+			return;
+		
 		var x = e.offsetX;
 		var y = e.offsetY;
 		var hotspot = state.getHotspot(x, y);
 		if (hotspot) {
-			state.runScriptHandler(hotspot.script, "mouse-down");			
+			// hide mouse and ignore it until script is done
+			var savedCursor = state.cursor;
+			state.ignoreMouse = true;
+			
+			// workaround for webkit
+			var t = setTimeout(function() {
+				state.setCursor(9000);				
+			}, 100);
+			
+			var p = state.runScriptHandler(hotspot.script, "mouse-down");
+			jQuery.when(p, t).done(function() {
+				state.setCursor(savedCursor);
+				state.ignoreMouse = false;
+			});
 		}
 	},
 	
 	onMouseUp: function(e) {
+		if (state.ignoreMouse)
+			return;
+		
 		var x = e.offsetX;
 		var y = e.offsetY;
 		var hotspot = state.getHotspot(x, y);
@@ -188,7 +216,7 @@ var state = {
 		} else {
 			deferred.resolve();
 		}
-		return deferred;
+		return deferred.promise();
 	},
 	
 	runScript: function(commands, index, deferred) {
@@ -214,13 +242,20 @@ var state = {
 				state.runScript(commands, index + 1, deferred);
 			});
 		} else {
+			var p = null;
 			if (cmd.name in scriptCommands) {
-				scriptCommands[cmd.name].apply(scriptCommands, cmd.arguments);
+				p = scriptCommands[cmd.name].apply(scriptCommands, cmd.arguments);
 			} else {
 				console.message("!!! (stub) " + cmd.name + " " + cmd.arguments.toString());
 			}
 			
-			state.runScript(commands, index + 1, deferred);
+			if (p) {
+				p.fail(deferred.reject).done(function() {
+					state.runScript(commands, index + 1, deferred);
+				});
+			} else {
+				state.runScript(commands, index + 1, deferred);
+			}
 		}
 	},
 	
@@ -243,6 +278,7 @@ var state = {
 			cursor = 3000;
 		var url = "/static/cursors/" + cursor + ".png";
 		state.canvas.style.cursor = "url(" + url + "), auto";
+		state.cursor = cursor;
 	},
 	
 	activateBLST: function(i) {
@@ -277,6 +313,15 @@ var state = {
 			}
 		});
 		return ret;
+	},
+	
+	playSound: function(resource) {
+		var d = jQuery.Deferred();
+		resource.play();
+		$(resource).on("ended", function() {
+			d.resolve();
+		});
+		return d.promise();
 	}
 };
 
@@ -288,13 +333,27 @@ function loadResource(stack, type, id) {
 	case 'tBMP':
 		var d = new jQuery.Deferred();
 		var img = new Image();
-		img.src = url
+		img.src = url;
 		img.onload = function() {
 			d.resolve(img);
 		};
 		img.onerror = function() {
 			d.reject();
 		};
+		p = d.promise();
+		break;
+	case 'tWAV':
+		var d = new jQuery.Deferred();
+		var snd = new Audio();
+		snd.src = url;
+		// huh, onloadeddata doesn't work on chrome
+		$(snd).on("canplay", function() {
+			d.resolve(snd);
+		});
+		$(snd).on("error", function() {
+			d.reject();
+		});
+		snd.load();
 		p = d.promise();
 		break;
 	default:
