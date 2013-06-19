@@ -2,6 +2,8 @@ var state = {
 	// stuff from setup()
 	ctx: null,
 	canvas: null,
+	offscreenCtx: null,
+	offscreen: null,
 	
 	// state (in the large)
 	stackname: null,
@@ -27,6 +29,11 @@ var state = {
 		jbridge4: 1,
 	},
 	
+	// offscreen contexts, and whether to use it
+	// and transition info
+	useOffscreen: false,
+	transition: null,
+	
 	// whether to ignore mouse events
 	ignoreMouse: false,
 	
@@ -38,7 +45,13 @@ var state = {
 	
 	setup: function(canvas) {
 		state.canvas = canvas[0];
-		state.ctx = state.canvas.getContext("2d");
+		state.ctx = state.canvas.getContext('2d');
+		
+		state.offscreen = document.createElement('canvas');
+		state.offscreen.width = state.canvas.width;
+		state.offscreen.height = state.canvas.height;
+		state.offscreenCtx = state.offscreen.getContext('2d');
+		
 		canvas.mousemove(state.onMouseMove);
 		canvas.mousedown(state.onMouseDown);
 		canvas.mousedown(state.onMouseUp);
@@ -89,7 +102,9 @@ var state = {
 			
 			var p = state.runScriptHandler(hotspot.script, "mouse-down");
 			jQuery.when(p, t).done(function() {
-				state.setCursor(savedCursor);
+				setTimeout(function() {
+					state.setCursor(savedCursor);
+				}, 100);
 				state.ignoreMouse = false;
 			});
 		}
@@ -137,6 +152,9 @@ var state = {
 		// currently gotoCard is used for reload, so *don't do this!*
 		//if (stackname == state.stackname && cardid == state.cardid)
 		//	return jQuery.Deferred().resolve();
+		
+		// disable updates
+		state.disableScreenUpdate();
 		
 		// unload current card
 		var unload;
@@ -195,11 +213,15 @@ var state = {
 					// activate plst 1 by default
 					state.activatePLST(1).fail(d.reject).done(function() {
 						// run load-card
-						var lc = state.runScriptHandler(state.card.script, "load-card");
+						var lc = state.runScriptHandler(state.card.script, "load-card");						
 						lc.fail(d.reject).done(function() {
-							// run open-card
-							var oc = state.runScriptHandler(state.card.script, "open-card");
-							oc.fail(d.reject).done(d.resolve);
+							// enable updates again
+							state.enableScreenUpdate().fail(d.reject).done(function() {
+								// run open-card
+								var oc = state.runScriptHandler(state.card.script, "open-card");
+								oc.fail(d.reject).done(d.resolve);
+
+							});
 						});
 					});
 				});
@@ -273,8 +295,54 @@ var state = {
 		state.variables[name] = value;
 	},
 	
+	flip: function() {
+		// move offscreen to ctx, with transition if needed
+		var d = jQuery.Deferred();
+		
+		if (state.transition != null) {
+			console.message("!!! (stub transition) " + state.transition);
+			state.transition = null;
+		}
+		
+		state.ctx.drawImage(state.offscreen, 0, 0);
+		
+		return d.resolve();
+	},
+	
+	scheduleTransition: function(transition) {
+		state.transition = transition;
+	},
+	
+	disableScreenUpdate: function() {
+		state.offscreenCtx.drawImage(state.canvas, 0, 0);
+		state.useOffscreen = true;
+	},
+	
+	enableScreenUpdate: function() {
+		var d = state.runScriptHandler(state.card.script, 'display-update');
+		return d.then(function() {
+			state.useOffscreen = false;
+			return state.flip();			
+		});
+	},
+	
 	draw: function(drawfun) {
+		// screen update disabled
+		if (state.useOffscreen) {
+			drawfun(state.offscreenCtx);
+			return jQuery.Deferred().resolve();
+		}
+		
+		// scheduled transition, screen update enabled
+		if (state.transition != null) {
+			state.disableScreenUpdate();
+			drawfun(state.offscreenCtx);
+			return state.enableScreenUpdate();
+		}
+		
+		// no transition, screen update enabled
 		drawfun(state.ctx);
+		return jQuery.Deferred().resolve();
 	},
 	
 	setCursor: function(cursor) {

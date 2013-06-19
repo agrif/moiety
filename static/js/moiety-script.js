@@ -17,6 +17,14 @@ var scriptCommands = {
 		}
 	},
 	
+	'disable-update': function() {
+		state.disableScreenUpdate();
+	},
+	
+	'enable-update': function() {
+		return state.enableScreenUpdate();
+	},
+	
 	'goto-card': function(cardid) {
 		return state.gotoCard(state.stackname, cardid);
 	},
@@ -41,11 +49,17 @@ var scriptCommands = {
 	'set-var': function(nameid, value) {
 		var name = state.variableNames[nameid];
 		state.setVariable(name, value);
+	},
+	
+	'transition': function(transition, left, top, right, bottom) {
+		// we ignore the rectangle, because it's mostly never used in riven
+		state.scheduleTransition(transition);
 	}
 };
 
 var externalCommands = {
 	'xasetupcomplete': function() {
+		state.scheduleTransition(16);
 		return state.gotoCard("aspit", 1);
 	}
 };
