@@ -273,6 +273,10 @@ var state = {
 		state.variables[name] = value;
 	},
 	
+	draw: function(drawfun) {
+		drawfun(state.ctx);
+	},
+	
 	setCursor: function(cursor) {
 		if (!cursor)
 			cursor = 3000;
@@ -297,9 +301,11 @@ var state = {
 			return jQuery.Deferred().resolve();
 		}
 		
-		return loadResource(state.stackname, 'tBMP', record.bitmap).done(function(img) {
+		return loadResource(state.stackname, 'tBMP', record.bitmap).then(function(img) {
 			record.enabled = true;
-			state.ctx.drawImage(img, record.left, record.top, record.right-record.left, record.bottom-record.top);
+			return state.draw(function(ctx) {
+				ctx.drawImage(img, record.left, record.top, record.right-record.left, record.bottom-record.top);
+			});
 		});
 	},
 	
