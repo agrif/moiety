@@ -35,13 +35,21 @@ var scriptCommands = {
 		state.setVariable(name, v + value);
 	},
 	
-	'play-wav': function(wavid, volume, u0) {
-		// ignore volume, since in riven it's almost always 255
-		var d = jQuery.Deferred();
-		loadResource(state.stackname, 'tWAV', wavid).done(function(r) {
-			state.playSound(r).fail(d.reject).done(d.resolve);
+	'pause': function(ms, u0) {
+		return jQuery.Deferred(function(d) {
+			setTimeout(function() {
+				d.resolve();
+			}, ms);
 		});
-		return d.promise();
+	},
+	
+	'play-wav': function(wavid, volume, u0) {
+		// ignore volume, since in riven it's almost always 256
+		// this command is also asynchronous
+		// (sound plays in background)
+		return loadResource(state.stackname, 'tWAV', wavid).done(function(r) {
+			state.playSound(r);
+		});
 	},
 	
 	'reload': function() {
