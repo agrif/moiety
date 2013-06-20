@@ -242,6 +242,11 @@ def HSPT(i, r, stack, id):
     obj['script'] = structure_script(script)
     return obj
 
+@resource_url('RMAP')
+@json_view
+def RMAP(r, stack, id):
+    return r.codes
+
 @app.route("/")
 def main():
     return render_template('index.html')

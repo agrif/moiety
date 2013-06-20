@@ -29,6 +29,23 @@ var scriptCommands = {
 		return state.gotoCard(state.stackname, cardid);
 	},
 	
+	'goto-stack': function(stackid, code_hi, code_low) {
+		var stackname = state.stackNames[stackid];
+		var code = (code_hi << 16) | code_low;
+		return loadResource(stackname, 'RMAP', 1).then(function(rmaps) {
+			var cardid = null;
+			for (i in rmaps) {
+				if (rmaps[i] == code) {
+					cardid = i;
+					break;
+				}
+			}
+			if (cardid == null)
+				return jQuery.Deferred.reject();
+			return state.gotoCard(stackname, cardid);
+		});
+	},
+	
 	'increment': function(varid, value) {
 		var name = state.variableNames[varid];
 		var v = state.getVariable(name);

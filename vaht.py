@@ -252,6 +252,8 @@ class Archive(VahtCountedObject):
             return BLST.open(r)
         elif r.type == 'HSPT':
             return HSPT.open(r)
+        elif r.type == 'RMAP':
+            return RMAP.open(r)
         
         return r
 
@@ -716,3 +718,35 @@ class HSPT(VahtObject):
     
     def script(self, i):
         return Script(self._script(self, i), owner=self)
+
+##
+## vaht_rmap.h
+##
+
+class RMAP(VahtObject):
+    class Methods:
+        open = (c_void_p, [c_void_p])
+        close = (None, [c_void_p])
+        count = (c_uint16, [c_void_p])
+        get = (c_uint32, [c_void_p, c_uint16])
+    
+    @classmethod
+    def open(cls, resource):
+        obj = cls._open(resource)
+        if not obj:
+            raise RuntimeError("could not open RMAP")
+        return cls(obj)
+    
+    @property
+    def count(self):
+        return self._count(self)
+    
+    def get(self, i):
+        return self._get(self, i)
+    
+    @property
+    def codes(self):
+        ret = []
+        for i in range(self.count):
+            ret.append(self.get(i))
+        return ret
