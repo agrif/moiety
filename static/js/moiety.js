@@ -103,15 +103,15 @@ var state = {
 			state.ignoreMouse = true;
 			
 			// workaround for webkit
-			var t = setTimeout(function() {
-				state.setCursor(9000);				
+			var t = jQuery.Deferred();
+			setTimeout(function() {
+				state.setCursor(9000);
+				t.resolve();
 			}, 100);
 			
 			var p = state.runScriptHandler(hotspot.script, "mouse-down");
 			jQuery.when(p, t).done(function() {
-				setTimeout(function() {
-					state.setCursor(savedCursor);
-				}, 100);
+				state.setCursor(savedCursor);
 				state.ignoreMouse = false;
 			});
 		}
