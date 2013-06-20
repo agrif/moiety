@@ -306,14 +306,104 @@ var state = {
 		// move offscreen to ctx, with transition if needed
 		var d = jQuery.Deferred();
 		
-		if (state.transition != null) {
-			console.message("!!! (stub transition) " + state.transition);
-			state.transition = null;
+		if (state.transition == null) {
+			// simple
+			state.ctx.drawImage(state.offscreen, 0, 0);
+			return d.resolve();
+		}
+
+		// transition
+		var width = state.canvas.width;
+		var height = state.canvas.height;
+		var first = state.ctx.getImageData(0, 0, width, height);
+		var second = state.offscreen;
+		
+		var start = {
+			firstX: 0,
+			firstY: 0,
+			firstDirtyX: 0,
+			firstDirtyY: 0,
+			firstDirtyWidth: width,
+			firstDirtyHeight: height,
+			
+			secondX: 0,
+			secondY: 0,
+			secondSX: 0,
+			secondSY: 0,
+			secondSWidth: width,
+			secondSHeight: height,
+			secondAlpha: 1.0,
+		};
+		
+		var end = jQuery.extend(true, {}, start);
+		var firstOnTop = false;
+		
+		function posForDirection(dir, invert) {
+			if (invert) {
+				dir = dir ^ 0x1;
+			}
+			switch (dir) {
+			case 0: return {x: width, y: 0};
+			case 1: return {x: -width, y: 0};
+			case 2: return {x: 0, y: height};
+			case 3: return {x: 0, y: -height};
+			}
 		}
 		
-		state.ctx.drawImage(state.offscreen, 0, 0);
+		// set up start/end based on state.transition
+		if (state.transition < 16) {
+			// directional!
+			var direction = state.transition & 0x3;
+			var secondMoves = state.transition & 0x4;
+			var firstMoves = state.transition & 0x8;
+			if (!secondMoves)
+				firstOnTop = true;
+			
+			if (!firstMoves && !secondMoves) {
+				// wipe!
+				console.message("!!! (stub wipe transition) " + state.transition);
+			} else {
+				// individually slide around!
+				if (firstMoves) {
+					var firstPos = posForDirection(direction, true);
+					end.firstX = firstPos.x;
+					end.firstY = firstPos.y;
+				}
+				if (secondMoves) {
+					var secondPos = posForDirection(direction, false);
+					start.secondX = secondPos.x;
+					start.secondY = secondPos.y;
+				}
+			}
+		} else {
+			// fade!
+			start.secondAlpha = 0.0;
+		}
+		state.transition = null;
 		
-		return d.resolve();
+		function setprops(props) {
+			if (!firstOnTop)
+				state.ctx.putImageData(first, props.firstX, props.firstY, props.firstDirtyX, props.firstDirtyY, props.firstDirtyWidth, props.firstDirtyHeight);
+			state.ctx.globalAlpha = props.secondAlpha;
+			state.ctx.drawImage(second, props.secondSX, props.secondSY, props.secondSWidth, props.secondSHeight, props.secondX, props.secondY, props.secondSWidth, props.secondSHeight);
+			state.ctx.globalAlpha = 1.0;
+			if (firstOnTop)
+				state.ctx.putImageData(first, props.firstX, props.firstY, props.firstDirtyX, props.firstDirtyY, props.firstDirtyWidth, props.firstDirtyHeight);
+		}
+		
+		$(start).animate(end, {
+			duration: 250,
+			easing: 'linear',
+			step: function() {
+				setprops(this);
+			},
+			complete: function() {
+				// force the endstate to be second, always
+				state.ctx.drawImage(second, 0, 0);
+				d.resolve();
+			}
+		});
+		return d.promise();
 	},
 	
 	scheduleTransition: function(transition) {
