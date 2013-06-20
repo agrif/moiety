@@ -61,7 +61,7 @@ var state = {
 		
 		canvas.mousemove(state.onMouseMove);
 		canvas.mousedown(state.onMouseDown);
-		canvas.mousedown(state.onMouseUp);
+		canvas.mouseup(state.onMouseUp);
 	},
 	
 	onMouseMove: function(e) {
@@ -100,11 +100,11 @@ var state = {
 		if (hotspot) {
 			// hide mouse and ignore it until script is done
 			var savedCursor = state.cursor;
-			state.ignoreMouse = true;
 			
 			// workaround for webkit
 			var t = jQuery.Deferred();
 			setTimeout(function() {
+				state.ignoreMouse = true;
 				state.setCursor(9000);
 				t.resolve();
 			}, 100);
