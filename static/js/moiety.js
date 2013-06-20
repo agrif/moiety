@@ -24,6 +24,9 @@ var state = {
 	
 	// variable storage
 	variables: {
+		// initial state of the telescope
+		ttelescope: 3,
+		
 		// initial state of the gateroom
 		tgatestate: 1,
 		
