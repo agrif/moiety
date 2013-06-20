@@ -29,6 +29,12 @@ var scriptCommands = {
 		return state.gotoCard(state.stackname, cardid);
 	},
 	
+	'increment': function(varid, value) {
+		var name = state.variableNames[varid];
+		var v = state.getVariable(name);
+		state.setVariable(name, v + value);
+	},
+	
 	'play-wav': function(wavid, volume, u0) {
 		// ignore volume, since in riven it's almost always 255
 		var d = jQuery.Deferred();

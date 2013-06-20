@@ -24,7 +24,14 @@ var state = {
 	
 	// variable storage
 	variables: {
+		// initial state of the gateroom
+		tgatestate: 1,
+		
+		// turn off the temple island dome elevator
+		tdomeelev: 1,
+		
 		// initial state of the lake sub access points
+		// (turn on first, and control tower only)
 		jbridge1: 1,
 		jbridge4: 1,
 	},
