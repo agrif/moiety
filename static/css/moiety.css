@@ -12,7 +12,7 @@ body
 	border-radius: 10px;
 }
 
-#console
+#log
 {
 	width: 608px;
 	margin: auto;
@@ -24,38 +24,38 @@ body
 	border: 1px solid #400;
 }
 
-#console a:link, #console a:visited
+#log a:link, #log a:visited
 {
 	color: #aaa;
 	font-weight: bold;
 	text-decoration: none;
 }
 
-#console a:hover
+#log a:hover
 {
 	text-decoration: underline;
 }
 
-#console div.jquery-console-inner
+#log div.jquery-console-inner
 {
 	height: 100px;
 	padding: 0.5em;
 	overflow: auto;
 }
 
-#console div.jquery-console-prompt-box
+#log div.jquery-console-prompt-box
 {
 	font-family: monospace;
 	color: #eee;
 }
 
-#console div.jquery-console-focus span.jquery-console-cursor
+#log div.jquery-console-focus span.jquery-console-cursor
 {
 	background-color: #eee;
 	color: #333;
 }
 
-#console .jquery-console-message-error
+#log .jquery-console-message-error
 {
 	color: #e00;
 }

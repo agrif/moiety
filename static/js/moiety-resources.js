@@ -48,7 +48,7 @@ function loadResourceWithPriority(priority, stack, type, id) {
 		p = jQuery.getJSON(url);
 	}
 	
-	console.status('loading <a href="' + url + '">' + url + '</a>', p);
+	log.status('loading <a href="' + url + '">' + url + '</a>', p);
 	resources.setItem(url, p, {priority: priority});
 	return p;
 }

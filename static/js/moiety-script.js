@@ -13,7 +13,7 @@ var scriptCommands = {
 		if (name in externalCommands) {
 			return externalCommands[name].apply(externalCommands, args);
 		} else {
-			console.message("!!! (stub call) " + name + " " + args.toString());			
+			log.message("!!! (stub call) " + name + " " + args.toString());			
 		}
 	},
 	

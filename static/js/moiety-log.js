@@ -10,7 +10,7 @@ var resourceTypes = [
 	'tWAV', 'VARS', 'VERS', 'ZIPS'
 ];
 
-var consoleCommands = {
+var logCommands = {
 	'help': function(cmd) {
 		/** list all commands, or help for a specific command
 			Usage: $command [<command>]
@@ -19,9 +19,9 @@ var consoleCommands = {
 		if (arguments.length > 1) throw "invalid arguments";
 		
 		function extractHelp(name) {
-			if (!(name in consoleCommands))
+			if (!(name in logCommands))
 				return null;
-			var fun = consoleCommands[name];
+			var fun = logCommands[name];
 			var sf = String(fun);
 			var matches = sf.match(/\/\*\*([\s\S]*)\*\//m);
 			if (matches)
@@ -33,28 +33,28 @@ var consoleCommands = {
 			// command help!
 			var help = extractHelp(cmd);
 			if (help) {
-				console.message(cmd + ' - ' + help);
+				log.message(cmd + ' - ' + help);
 			} else {
-				console.message("there is no help for " + cmd);
+				log.message("there is no help for " + cmd);
 			}
 		} else {
 			// command summary!
-			var commands = console.getCommands();
+			var commands = log.getCommands();
 			for (i in commands) {
 				var help = extractHelp(commands[i]);
 				if (help) {
 					var summary = help.split(/\r?\n/)[0];
-					console.message(commands[i] + ' - ' + summary);
+					log.message(commands[i] + ' - ' + summary);
 				} else {
-					console.message(commands[i]);
+					log.message(commands[i]);
 				}
 			}
 		}
 	},
 	'complete:help': function(i, part) {
 		if (i == 0) {
-			var commands = console.getCommands();
-			return console.completionsFrom(part, commands);
+			var commands = log.getCommands();
+			return log.completionsFrom(part, commands);
 		}
 		return [];
 	},
@@ -69,9 +69,9 @@ var consoleCommands = {
 	'complete:load': function(i, part) {
 		switch (i) {
 		case 0:
-			return console.completionsFrom(part, stackNames);
+			return log.completionsFrom(part, stackNames);
 		case 1:
-			return console.completionsFrom(part, resourceTypes);
+			return log.completionsFrom(part, resourceTypes);
 		}
 		return [];
 	},
@@ -85,7 +85,7 @@ var consoleCommands = {
 	},
 	'complete:goto-card': function(i, part) {
 		if (i == 0)
-			return console.completionsFrom(part, stackNames);
+			return log.completionsFrom(part, stackNames);
 		return [];
 	},
 	
@@ -98,7 +98,7 @@ var consoleCommands = {
 	}
 };
 
-var ConsoleView = Backbone.View.extend({
+var LogView = Backbone.View.extend({
 	initialize: function() {
 		var viewthis = this;
 		this.console = this.$el.console({
@@ -135,9 +135,9 @@ var ConsoleView = Backbone.View.extend({
 					 className: "jquery-console-message-error"}]);
 		}
 		
-		if (args[0] in consoleCommands) {
+		if (args[0] in logCommands) {
 			try {
-				consoleCommands[args[0]].apply(consoleCommands, args.slice(1));
+				logCommands[args[0]].apply(logCommands, args.slice(1));
 			} catch (err) {
 				doerror(err);
 				return;
@@ -151,7 +151,7 @@ var ConsoleView = Backbone.View.extend({
 	},
 	
 	getCommands: function() {
-		var cmds = jQuery.map(consoleCommands, function(v, k) {
+		var cmds = jQuery.map(logCommands, function(v, k) {
 			if (k.indexOf("complete:") == 0) {
 				return null;
 			} else {
@@ -180,9 +180,9 @@ var ConsoleView = Backbone.View.extend({
 			args = this.splitCommand(line);
 			if (args.length > 1) {
 				// argument completion
-				if (!('complete:' + args[0] in consoleCommands))
+				if (!('complete:' + args[0] in logCommands))
 					return [];
-				completer = consoleCommands['complete:' + args[0]];
+				completer = logCommands['complete:' + args[0]];
 				return completer(args.length - 2, args[args.length - 1]);
 			} else {
 				// command complition
@@ -202,7 +202,7 @@ var ConsoleView = Backbone.View.extend({
 	status: function(msg, p) {
 		var mesg = $('<div/>').html(msg);
 		var status = $('<div/>').addClass('status status-pending').appendTo(mesg);
-		console.message(mesg);
+		log.message(mesg);
 		if (!p) {
 			p = jQuery.Deferred();
 		}
@@ -215,7 +215,7 @@ var ConsoleView = Backbone.View.extend({
 	}
 });
 
-var console;
+var log;
 $(function() {
-	console = new ConsoleView({el: $("#console")});	
+	log = new LogView({el: $("#log")});	
 });

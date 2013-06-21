@@ -137,7 +137,7 @@ var state = {
 			return jQuery.Deferred().resolve();
 		
 		// load up global stack resources
-		var stat = console.status("changing to stack " + stackname);
+		var stat = log.status("changing to stack " + stackname);
 		var pCards = loadResource(stackname, 'NAME', 1);
 		var pHotspots = loadResource(stackname, 'NAME', 2);
 		var pCommands = loadResource(stackname, 'NAME', 3);
@@ -182,7 +182,7 @@ var state = {
 			// change stacks
 			state.changeStack(stackname).done(function() {
 				// load new card
-				console.status("moving to card " + cardid, d);
+				log.status("moving to card " + cardid, d);
 				var pCard = loadResource(stackname, 'CARD', cardid);
 				var pPLST = loadResource(stackname, 'PLST', cardid);
 				var pBLST = loadResource(stackname, 'BLST', cardid);
@@ -278,7 +278,7 @@ var state = {
 			if (cmd.name in scriptCommands) {
 				p = scriptCommands[cmd.name].apply(scriptCommands, cmd.arguments);
 			} else {
-				console.message("!!! (stub) " + cmd.name + " " + cmd.arguments.toString());
+				log.message("!!! (stub) " + cmd.name + " " + cmd.arguments.toString());
 			}
 			
 			if (p) {
@@ -293,15 +293,15 @@ var state = {
 	
 	getVariable: function(name) {
 		if (name in state.variables) {
-			console.message("reading " + name + " = " + state.variables[name]);
+			log.message("reading " + name + " = " + state.variables[name]);
 			return state.variables[name];
 		}
-		console.message("reading " + name + " = 0 (default)");
+		log.message("reading " + name + " = 0 (default)");
 		return 0;
 	},
 	
 	setVariable: function(name, value) {
-		console.message("setting " + name + " = " + value);
+		log.message("setting " + name + " = " + value);
 		state.variables[name] = value;
 	},
 	
@@ -364,7 +364,7 @@ var state = {
 			
 			if (!firstMoves && !secondMoves) {
 				// wipe!
-				console.message("!!! (stub wipe transition) " + state.transition);
+				log.message("!!! (stub wipe transition) " + state.transition);
 			} else {
 				// individually slide around!
 				if (firstMoves) {
