@@ -491,6 +491,7 @@ var state = {
 	
 	playSound: function(resource) {
 		var d = jQuery.Deferred();
+		resource.load();
 		resource.play();
 		$(resource).on("ended", function() {
 			d.resolve();
@@ -498,46 +499,6 @@ var state = {
 		return d.promise();
 	}
 };
-
-function loadResource(stack, type, id) {
-	var p;
-	var url = "/resources/" + stack + "/" + type + "/" + id
-	
-	switch (type) {
-	case 'tBMP':
-		var d = new jQuery.Deferred();
-		var img = new Image();
-		img.src = url;
-		img.onload = function() {
-			d.resolve(img);
-		};
-		img.onerror = function() {
-			d.reject();
-		};
-		p = d.promise();
-		break;
-	case 'tWAV':
-		var d = new jQuery.Deferred();
-		var snd = new Audio();
-		snd.src = url;
-		// huh, onloadeddata doesn't work on chrome
-		$(snd).on("canplay", function() {
-			d.resolve(snd);
-		});
-		$(snd).on("error", function() {
-			d.reject();
-		});
-		snd.load();
-		p = d.promise();
-		break;
-	default:
-		p = jQuery.getJSON(url);
-	}
-	
-	console.status('loading <a href="' + url + '">' + url + '</a>', p);
-	
-	return p;
-}
 
 $(function() {
 	state.setup($('#canvas'));
