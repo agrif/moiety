@@ -1,7 +1,10 @@
 import os.path
 import functools
 import StringIO
-import Image
+try:
+    import Image
+except ImportError:
+    from PIL import Image
 import wave
 import json
 

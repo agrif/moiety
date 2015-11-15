@@ -30,6 +30,24 @@ function loadResourceWithPriority(priority, stack, type, id) {
 		};
 		p = d.promise();
 		break;
+	case 'tMOV':
+		var d = new jQuery.Deferred();
+		var mov = document.createElement("video");
+		var src = document.createElement("source");
+		$(src).attr('type', 'video/quicktime');
+		$(src).attr('src', url);
+		$(mov).append(src);
+		$(mov).attr('preload', 'auto');
+		
+		$(mov).on("canplay", function() {
+			d.resolve(mov);
+		});
+		$(mov).on("error", function() {
+			d.reject();
+		});
+		//mov.load();
+		p = d.promise();
+		break;
 	case 'tWAV':
 		var d = new jQuery.Deferred();
 		var snd = new Audio();
