@@ -448,7 +448,7 @@ var state = {
 	setCursor: function(cursor) {
 		if (!cursor)
 			cursor = 3000;
-		var url = "/static/cursors/" + cursor + ".png";
+		var url = "static/cursors/" + cursor + ".png";
 		state.canvas.style.cursor = "url(" + url + "), auto";
 		state.cursor = cursor;
 	},

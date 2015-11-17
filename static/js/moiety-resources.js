@@ -9,7 +9,19 @@ function loadResource(stack, type, id) {
 
 function loadResourceWithPriority(priority, stack, type, id) {
 	var p;
-	var url = "/resources/" + stack + "/" + type + "/" + id
+	var ext = '.json';
+	switch (type) {
+	case 'tBMP':
+		ext = '.png';
+		break;
+	case 'tMOV':
+		ext = '.mov';
+		break;
+	case 'tWAV':
+		ext = '.wav';
+		break;
+	}
+	var url = "resources/" + stack + "/" + type + "/" + id + ext;
 	
 	var cached = resources.getItem(url);
 	if (cached != null) {

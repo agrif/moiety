@@ -1,6 +1,7 @@
 import os.path
 import functools
 import StringIO
+import sys
 try:
     import Image
 except ImportError:
@@ -12,6 +13,7 @@ import vaht
 
 from flask import Flask, abort, make_response, url_for
 from flask import render_template
+from werkzeug.exceptions import NotFound
 app = Flask(__name__)
 
 datadir = "/home/agrif/local/riven"
@@ -50,10 +52,12 @@ def get_resource(stack, type, id):
             pass
     raise IOError("could not load resource")
 
-resource_url_format = '/resources/<stack>/{type}/<int:id>'
-def resource_url(resource_type):
+resource_urls = []
+resource_url_format = '/resources/<stack>/{type}/<int:id>{ext}'
+def resource_url(resource_type, ext='.json'):
     def _resource_url(func):
-        @app.route(resource_url_format.format(type=resource_type))
+        url = resource_url_format.format(type=resource_type, ext=ext)
+        @app.route(url)
         @functools.wraps(func)
         def inner(stack, id):
             try:
@@ -61,8 +65,55 @@ def resource_url(resource_type):
             except IOError:
                 abort(404)
             return func(r, stack, id)
+        resource_urls.append((url, resource_type, inner))
         return inner
     return _resource_url
+
+def extract_static(force):
+    for stack in stack_files:
+        for url, restype, gen in resource_urls:
+            n = -1
+            while True:
+                n += 1
+                if restype == 'HSPT' and stack == 'gspit' and n == 12:
+                    # FIXME segfaults, dunno why
+                    continue
+                path = '.' + url.replace('<stack>', stack).replace('<int:id>', str(n))
+                if os.path.exists(path) and not force:
+                    continue
+                
+                try:
+                    resp = gen(stack, n)
+                except NotFound:
+                    if n == 0:
+                        continue
+                    break
+                
+                print path
+                dirs, _ = os.path.split(path)
+                if not os.path.isdir(dirs):
+                    os.makedirs(dirs)
+                with open(path, 'wb') as f:
+                    f.write(resp.get_data())
+    
+    static = os.path.split(sys.argv[0])[0]
+    static = os.path.join(static, 'static')
+    for root, _, files in os.walk(static):
+        for fname in files:
+            frompath = os.path.join(root, fname)
+            topath = './static/' + os.path.relpath(frompath, static)
+            print topath
+            todirs, _ = os.path.split(topath)
+            if not os.path.isdir(todirs):
+                os.makedirs(todirs)
+            with open(frompath, 'rb') as ffrom:
+                with open(topath, 'wb') as fto:
+                    fto.write(ffrom.read())
+
+    print './index.html'
+    resp = main()
+    with open('./index.html', 'wb') as f:
+        f.write(make_response(resp).get_data())
 
 def content_type(mime):
     def _content_type(func):
@@ -83,7 +134,7 @@ def json_view(func):
         return json.dumps(resp, ensure_ascii=False)
     return inner
 
-@resource_url('tBMP')
+@resource_url('tBMP', '.png')
 @content_type('image/png')
 def tBMP(r, stack, id):
     im = Image.fromstring('RGB', (r.width, r.height), r.data)
@@ -91,7 +142,7 @@ def tBMP(r, stack, id):
     im.save(buf, 'png')
     return buf.getvalue()
 
-@resource_url('tMOV')
+@resource_url('tMOV', '.mov')
 @content_type('video/quicktime')
 def tMOV(r, stack, id):
     buf = ""
@@ -102,7 +153,7 @@ def tMOV(r, stack, id):
             break
     return buf
 
-@resource_url('tWAV')
+@resource_url('tWAV', '.wav')
 @content_type('audio/wav')
 def tWAV(r, stack, id):
     inbuf = ""
@@ -255,4 +306,8 @@ def main():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=False, host="::", processes=8)
+    if '--static' in sys.argv:
+        with app.app_context():
+            extract_static('--force' in sys.argv)
+    else:
+        app.run(debug=False, host="::", processes=8)
