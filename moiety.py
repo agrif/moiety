@@ -69,12 +69,16 @@ def resource_url(resource_type, ext='.json'):
         return inner
     return _resource_url
 
+def resource_ids(stack, restype):
+    for fname in stack_files[stack]:
+        a = get_archive(fname)
+        for r in a.open_resources(restype):
+            yield r.id
+
 def extract_static(force):
     for stack in stack_files:
         for url, restype, gen in resource_urls:
-            n = -1
-            while True:
-                n += 1
+            for n in resource_ids(stack, restype):
                 if restype == 'HSPT' and stack == 'gspit' and n == 12:
                     # FIXME segfaults, dunno why
                     continue
@@ -82,12 +86,7 @@ def extract_static(force):
                 if os.path.exists(path) and not force:
                     continue
                 
-                try:
-                    resp = gen(stack, n)
-                except NotFound:
-                    if n == 0:
-                        continue
-                    break
+                resp = gen(stack, n)
                 
                 print path
                 dirs, _ = os.path.split(path)

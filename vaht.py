@@ -229,6 +229,9 @@ class Archive(VahtCountedObject):
         for i in range(self._get_resource_types(self)):
             ret.append(self._get_resource_type(self, i))
         return ret
+
+    def open_resources(self, type):
+        return Resource.open_all(self, type)
     
     def open_resource_raw(self, type, id):
         return Resource.open(self, type, id)
@@ -263,6 +266,11 @@ class Archive(VahtCountedObject):
 ## vaht_resource.h
 ##
 
+# vaht_resources_open
+_resources_open = vaht.vaht_resources_open
+_resources_open.argtypes = [c_void_p, c_char_p]
+_resources_open.restype = POINTER(c_void_p)
+
 class Resource(VahtCountedObject):
     class Methods:
         open = (c_void_p, [c_void_p, c_char_p, c_uint16])
@@ -276,6 +284,20 @@ class Resource(VahtCountedObject):
         seek = (None, [c_void_p, c_uint32])
         tell = (c_uint32, [c_void_p])
     
+    @classmethod
+    def open_all(cls, archive, type):
+        ptr = _resources_open(archive, type)
+        if not ptr:
+            return []
+        def gen():
+            i = 0
+            while ptr[i]:
+                yield cls(ptr[i])
+                i += 1
+        r = list(gen())
+        free(ptr)
+        return r
+
     @classmethod
     def open(cls, archive, type, id):
         obj = cls._open(archive, type, id)
