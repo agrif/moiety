@@ -254,6 +254,8 @@ class Archive(VahtCountedObject):
             return HSPT.open(r)
         elif r.type == 'RMAP':
             return RMAP.open(r)
+        elif r.type == 'SLST':
+            return SLST.open(r)
         
         return r
 
@@ -750,3 +752,54 @@ class RMAP(VahtObject):
         for i in range(self.count):
             ret.append(self.get(i))
         return ret
+
+##
+## vaht_slst.h
+##
+
+SLST_NO_FADE, SLST_FADE_OUT, SLST_FADE_IN, SLST_FADE_IN_OUT = range(4)
+
+class SLST(VahtObject):
+    class Methods:
+        open = (c_void_p, [c_void_p])
+        close = (None, [c_void_p])
+        records = (c_uint16, [c_void_p])
+        count = (c_uint16, [c_void_p, c_uint16])
+        sound_id = (c_uint16, [c_void_p, c_uint16, c_uint16])
+        fade = (c_uint16, [c_void_p, c_uint16])
+        loop = (c_uint16, [c_void_p, c_uint16])
+        global_volume = (c_uint16, [c_void_p, c_uint16])
+        volume = (c_uint16, [c_void_p, c_uint16, c_uint16])
+        balance = (c_uint16, [c_void_p, c_uint16, c_uint16])
+    
+    @classmethod
+    def open(cls, resource):
+        obj = cls._open(resource)
+        if not obj:
+            raise RuntimeError("could not open SLST")
+        return cls(obj)
+    
+    @property
+    def records(self):
+        return self._records(self)
+    
+    def count(self, i):
+        return self._count(self, i)
+
+    def sound_id(self, i, j):
+        return self._sound_id(self, i, j)
+
+    def fade(self, i):
+        return self._fade(self, i)
+
+    def loop(self, i):
+        return bool(self._loop(self, i))
+
+    def global_volume(self, i):
+        return self._global_volume(self, i)
+
+    def volume(self, i, j):
+        return self._volume(self, i, j)
+
+    def balance(self, i, j):
+        return self._balance(self, i, j)

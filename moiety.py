@@ -301,6 +301,21 @@ def HSPT(i, r, stack, id):
 def RMAP(r, stack, id):
     return r.codes
 
+@resource_url('SLST')
+@json_record_list
+def SLST(i, r, stack, id):
+    sounds = []
+    for j in range(r.count(i)):
+        sound_id = r.sound_id(i, j)
+        volume = r.volume(i, j)
+        balance = r.balance(i, j)
+        sounds.append(dict(sound_id=sound_id, volume=volume, balance=balance))
+    d = dict(sounds=sounds)
+    d['fade'] = ['none', 'out', 'in', 'inout'][r.fade(i)]
+    d['loop'] = r.loop(i)
+    d['volume'] = r.global_volume(i)
+    return d
+
 @app.route("/")
 def main():
     return render_template('index.html')

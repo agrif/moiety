@@ -21,6 +21,10 @@ var state = {
 	plst: null,
 	blst: null,
 	hspt: null,
+    slst: null,
+
+    // playing background sounds
+    bgSounds: {},
 	
 	// variable storage
 	variables: {
@@ -52,7 +56,7 @@ var state = {
 	
 	// the last set cursor
 	cursor: 3000,
-	
+
 	setup: function(canvas) {
 		state.canvas = canvas[0];
 		state.ctx = state.canvas.getContext('2d');
@@ -152,6 +156,10 @@ var state = {
 			state.commandNames = commands[0];
 			state.variableNames = variables[0];
 			state.stackNames = stacks[0];
+            jQuery.each(state.bgSounds, function(i, v) {
+                v.pause();
+            });
+            state.bgSounds = {};
 			stat.resolve();
 		}).fail(stat.reject);
 		
@@ -187,8 +195,9 @@ var state = {
 				var pPLST = loadResource(stackname, 'PLST', cardid);
 				var pBLST = loadResource(stackname, 'BLST', cardid);
 				var pHSPT = loadResource(stackname, 'HSPT', cardid);
-				var when = jQuery.when(pCard, pPLST, pBLST, pHSPT);
-				when.fail(d.reject).done(function(card, plst, blst, hspt) {
+                var pSLST = loadResource(stackname, 'SLST', cardid);
+				var when = jQuery.when(pCard, pPLST, pBLST, pHSPT, pSLST);
+				when.fail(d.reject).done(function(card, plst, blst, hspt, slst) {
 					// set variables
 					state.cardid = cardid;
 					state.currentHotspot = null;
@@ -197,6 +206,7 @@ var state = {
 					state.plst = plst[0];
 					state.blst = blst[0];
 					state.hspt = hspt[0];
+                    state.slst = slst[0];
 					
 					// set up plst state
 					jQuery.each(state.plst, function(index, p) {
@@ -220,8 +230,9 @@ var state = {
 						}
 					});
 					
-					// activate plst 1 by default
-					state.activatePLST(1).fail(d.reject).done(function() {
+					// activate plst 1, slst 1 by default
+                    var pDef = jQuery.when(state.activatePLST(1), state.activateSLST(1));
+					pDef.fail(d.reject).done(function() {
 						// run load-card
 						var lc = state.runScriptHandler(state.card.script, "load-card");						
 						lc.fail(d.reject).done(function() {
@@ -476,6 +487,56 @@ var state = {
 			});
 		});
 	},
+    
+    activateSLST: function(i) {
+        var record = state.slst[i];
+        if (record == undefined)
+            record = {volume: 0, loop: false, fade: 'out', sounds: []};
+        
+        var pSounds = jQuery.map(record.sounds, function(s) {
+            return loadResource(state.stackname, 'tWAV', s.sound_id).then(function(wav) {
+                return {sound: wav, volume: s.volume, balance: s.balance, sound_id: s.sound_id};
+            });
+        });
+        var allSounds = jQuery.when.apply(jQuery, pSounds);
+        return allSounds.then(function() {
+            var fade = record.fade;
+            var added = {};
+            jQuery.each(arguments, function(i, s) {
+                var volume = (record.volume / 255) * (s.volume / 255);
+                var balance = s.balance / 128; // these are both guesses
+                if (volume > 1.0)
+                    volume = 1.0;
+                if (volume < 0.0)
+                    volume = 0.0;
+                var loop = record.loop;
+                var sound = s.sound;
+                if (s.sound_id in state.bgSounds) {
+                    sound = state.bgSounds[s.sound_id];
+                }
+                
+                if (volume > 0) {
+                    sound.volume = volume; // FIXME balance
+                    sound.loop = loop;
+                    if (!(s.sound_id in state.bgSounds)) {
+                        // FIXME fade in?
+                        sound.load();
+                        sound.play();
+                        state.bgSounds[s.sound_id] = sound;
+                    }
+                    added[s.sound_id] = sound;
+                }
+            });
+            
+            jQuery.each(state.bgSounds, function(i, s) {
+                if (!(i in added)) {
+                    // FIXME fade out?
+                    state.bgSounds[i].pause();
+                    delete state.bgSounds[i];
+                }
+            });
+        });
+    },
 	
 	getHotspot: function(x, y) {
 		var ret = null;

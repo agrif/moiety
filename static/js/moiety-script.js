@@ -85,7 +85,11 @@ var scriptCommands = {
 	'transition': function(transition, left, top, right, bottom) {
 		// we ignore the rectangle, because it's mostly never used in riven
 		state.scheduleTransition(transition);
-	}
+	},
+    
+    'activate-slst': function(record) {
+        return state.activateSLST(record);
+    }
 };
 
 var externalCommands = {

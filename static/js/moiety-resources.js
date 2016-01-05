@@ -96,6 +96,7 @@ function prefetchCardWithPriority(priority, stack, cardid) {
 	prefetchWithPriority(priority, stack, 'PLST', cardid);
 	prefetchWithPriority(priority, stack, 'BLST', cardid);
 	prefetchWithPriority(priority, stack, 'HSPT', cardid);
+	prefetchWithPriority(priority, stack, 'SLST', cardid);
 }
 
 function prefetchScriptWithPriority(priority, script, stack, cardid) {
@@ -171,6 +172,15 @@ function prefetchWithPriority(priority, stack, type, id) {
 			});
 		});
 		break;
+    case 'SLST':
+        res.done(function(slst) {
+            jQuery.each(slst.slice(1), function(i, v) {
+                jQuery.each(v.sounds, function(h, s) {
+                    loadResourceWithPriority(priority, stack, 'tWAV', s.sound_id);
+                });
+            });
+        });
+        break;
 	};
 }
 
