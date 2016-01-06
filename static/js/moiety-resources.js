@@ -1,7 +1,7 @@
 var resources = null;
 
 function loadResource(stack, type, id) {
-	var defaultPriority = 2;
+	var defaultPriority = 1;
 	var p = loadResourceWithPriority(defaultPriority, stack, type, id);
 	prefetchWithPriority(defaultPriority, stack, type, id);
 	return p;
@@ -169,5 +169,5 @@ function prefetchWithPriority(priority, stack, type, id) {
 }
 
 $(function() {
-	resources = new Cache(300);
+	resources = new Cache(50);
 });
