@@ -489,6 +489,7 @@ var state = {
 	},
     
     activateSLST: function(i) {
+        var fadeTime = 3000;
         var record = state.slst[i];
         if (record == undefined)
             record = {volume: 0, loop: false, fade: 'out', sounds: []};
@@ -516,22 +517,35 @@ var state = {
                 }
                 
                 if (volume > 0) {
-                    sound.volume = volume; // FIXME balance
-                    sound.loop = loop;
                     if (!(s.sound_id in state.bgSounds)) {
-                        // FIXME fade in?
-                        sound.load();
+                        sound.volume = 0;
                         sound.play();
                         state.bgSounds[s.sound_id] = sound;
                     }
+                    $(sound).stop();
+                    if (fade == "in" || fade == "inout") {
+                        $(sound).animate({volume: volume}, fadeTime);
+                    } else {
+                        sound.volume = volume;
+                    }
+                    sound.loop = loop; // FIXME balance
                     added[s.sound_id] = sound;
                 }
             });
             
             jQuery.each(state.bgSounds, function(i, s) {
                 if (!(i in added)) {
-                    // FIXME fade out?
-                    state.bgSounds[i].pause();
+                    $(s).stop();
+                    if (fade == "out" || fade == "inout") {
+                        $(s).animate({volume: 0}, fadeTime);
+                        setTimeout(function() {
+                            if (!(i in state.bgSounds)) {
+                                s.pause();
+                            }
+                        }, fadeTime);
+                    } else {
+                        s.pause();
+                    }
                     delete state.bgSounds[i];
                 }
             });
@@ -552,7 +566,6 @@ var state = {
 	
 	playSound: function(resource) {
 		var d = jQuery.Deferred();
-		resource.load();
 		resource.play();
 		$(resource).on("ended", function() {
 			d.resolve();
