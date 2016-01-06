@@ -128,6 +128,25 @@ DebugView.addTab('Summary', {
     }
 });
 
+DebugView.addTab('Variables', {
+    initialize: function() {
+        this.listenTo(state, 'change:variables', this.render);
+    },
+
+    render: function() {
+        var vars = [5];
+        var names = [];
+        jQuery.each(state.variables, function(k, v) {
+            names.push(k);
+        });
+        names.sort();
+        jQuery.each(names, function(i, k) {
+            vars.push([k, state.variables[k]]);
+        });
+        this.$el.html(renderVarTable.apply(null, vars));
+    }
+});
+
 DebugView.addTab('CARD', {
     initialize: function() {
         this.listenTo(state, 'change:cardid', this.render);

@@ -320,6 +320,7 @@ var state = {
     setVariable: function(name, value) {
         log.message("setting " + name + " = " + value);
         state.variables[name] = value;
+        state.change('variables');
     },
     
     flip: function() {
@@ -590,7 +591,6 @@ var Router = Backbone.Router.extend({
     },
     
     gotoCard: function(stackname, cardid) {
-        console.log('got route ' + stackname);
         state.gotoCard(stackname, cardid);
     }
 });
