@@ -136,7 +136,11 @@ def json_view(func):
 @resource_url('tBMP', '.png')
 @content_type('image/png')
 def tBMP(r, stack, id):
-    im = Image.fromstring('RGB', (r.width, r.height), r.data)
+    if r.truecolor:
+        im = Image.fromstring('RGB', (r.width, r.height), r.data)
+    else:
+        im = Image.fromstring('P', (r.width, r.height), r.indexed_data)
+        im.putpalette(r.palette)
     buf = StringIO.StringIO()
     im.save(buf, 'png')
     return buf.getvalue()

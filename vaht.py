@@ -343,6 +343,8 @@ class BMP(VahtObject):
         width = (c_uint16, [c_void_p])
         height = (c_uint16, [c_void_p])
         data = (c_void_p, [c_void_p])
+        palette = (c_void_p, [c_void_p])
+        indexed_data = (c_void_p, [c_void_p])
         compressed = (c_uint8, [c_void_p])
         truecolor = (c_uint8, [c_void_p])
     
@@ -365,6 +367,20 @@ class BMP(VahtObject):
     def data(self):
         ptr = self._data(self)
         return ctypes.string_at(ptr, self.width * self.height * 3)
+
+    @property
+    def palette(self):
+        ptr = self._palette(self)
+        if not ptr:
+            return None
+        return ctypes.string_at(ptr, 256 * 3)
+
+    @property
+    def indexed_data(self):
+        ptr = self._indexed_data(self)
+        if not ptr:
+            return None
+        return ctypes.string_at(ptr, self.width * self.height)
     
     @property
     def compressed(self):
