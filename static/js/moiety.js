@@ -212,6 +212,7 @@ var state = {
                     state.slst = card.slst;
 
                     state.change('cardid');
+                    rtr.navigate(stackname + '/' + cardid, {replace: true});
                     
                     // set up plst state
                     jQuery.each(state.plst, function(index, p) {
@@ -583,7 +584,21 @@ var state = {
 
 _.extend(state, Backbone.Events);
 
+var Router = Backbone.Router.extend({
+    routes: {
+        ":stackname/:cardid": "gotoCard"
+    },
+    
+    gotoCard: function(stackname, cardid) {
+        console.log('got route ' + stackname);
+        state.gotoCard(stackname, cardid);
+    }
+});
+
+var rtr;
 $(function() {
     state.setup($('#canvas'));
-    state.gotoCard('aspit', 1);
+    rtr = new Router;
+    if (!Backbone.history.start())
+        state.gotoCard('aspit', 1);
 });
