@@ -12,7 +12,7 @@ body
     border-radius: 10px;
 }
 
-#log
+.panel
 {
     width: 608px;
     margin: auto;
@@ -24,17 +24,19 @@ body
     border: 1px solid #400;
 }
 
-#log a:link, #log a:visited
+.panel a:link, .panel a:visited
 {
     color: #aaa;
     font-weight: bold;
     text-decoration: none;
 }
 
-#log a:hover
+.panel a:hover
 {
     text-decoration: underline;
 }
+
+/* log */
 
 #log div.jquery-console-inner
 {
@@ -101,4 +103,54 @@ body
 .status-failed
 {
     background-color: red;
+}
+
+/* debugger */
+
+#debugpanel
+{
+    padding: 10px;
+}
+
+ul.tabs
+{
+    display: table;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    background-color: black;
+    width: 100%;
+}
+
+ul.tabs > li.tab
+{
+    float: left;
+    padding: 10px;
+    cursor: pointer;
+    border-right: 5px solid black;
+}
+
+ul.tabs > li.tab:hover
+{
+    background-color: #333;
+}
+
+ul.tabs > li.tab.selected
+{
+    background-color: #333;
+}
+
+table.variables
+{
+}
+
+table.variables td.name
+{
+    font-weight: bold;
+    text-align: right;
+}
+
+table.variables td.name:after
+{
+    content: ":";
 }

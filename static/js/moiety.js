@@ -70,7 +70,12 @@ var state = {
         canvas.mousedown(state.onMouseDown);
         canvas.mouseup(state.onMouseUp);
     },
-    
+
+    // helper to fire a change event
+    change: function(name) {
+        state.trigger('change:' + name, state);
+    },
+
     onMouseMove: function(e) {
         if (state.ignoreMouse)
             return;
@@ -160,6 +165,9 @@ var state = {
                 v.pause();
             });
             state.bgSounds = {};
+            state.change('stackname');
+            state.change('cardid');
+            state.change('bgSounds')
             stat.resolve();
         }).fail(stat.reject);
         
@@ -202,6 +210,8 @@ var state = {
                     state.blst = card.blst;
                     state.hspt = card.hspt;
                     state.slst = card.slst;
+
+                    state.change('cardid');
                     
                     // set up plst state
                     jQuery.each(state.plst, function(index, p) {
@@ -224,7 +234,7 @@ var state = {
                             h.enabled = false;
                         }
                     });
-                    
+                                        
                     // activate plst 1, slst 1 by default
                     var pDef = jQuery.when(state.activatePLST(1), state.activateSLST(1));
                     pDef.fail(d.reject).done(function() {
@@ -549,13 +559,15 @@ var state = {
     
     getHotspot: function(x, y) {
         var ret = null;
-        jQuery.each(state.hspt, function(i, h) {
-            if (h.enabled &&
-                h.left <= x && x < h.right &&
-                h.top <= y && y < h.bottom) {
-                ret = h;
-            }
-        });
+        if (state.hspt) {
+            jQuery.each(state.hspt, function(i, h) {
+                if (h.enabled &&
+                    h.left <= x && x < h.right &&
+                    h.top <= y && y < h.bottom) {
+                    ret = h;
+                }
+            });
+        }
         return ret;
     },
     
@@ -568,6 +580,8 @@ var state = {
         return d.promise();
     }
 };
+
+_.extend(state, Backbone.Events);
 
 $(function() {
     state.setup($('#canvas'));
