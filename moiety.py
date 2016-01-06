@@ -65,7 +65,7 @@ def resource_url(resource_type, ext='.json'):
                 r = get_resource(stack, resource_type, id)
             except IOError:
                 abort(404)
-            return func(r, stack, id)
+            return func(r)
         resource_urls.append((url, resource_type, inner))
         return inner
     return _resource_url
@@ -162,7 +162,7 @@ def json_view(func):
 
 @resource_url('tBMP', '.png')
 @content_type('image/png')
-def tBMP(r, stack, id):
+def tBMP(r):
     if r.truecolor:
         im = Image.fromstring('RGB', (r.width, r.height), r.data)
     else:
@@ -174,7 +174,7 @@ def tBMP(r, stack, id):
 
 @resource_url('tMOV', '.mov')
 @content_type('video/quicktime')
-def tMOV(r, stack, id):
+def tMOV(r):
     buf = ""
     while True:
         d = r.read(4096)
@@ -185,7 +185,7 @@ def tMOV(r, stack, id):
 
 @resource_url('tWAV', '.wav')
 @content_type('audio/wav')
-def tWAV(r, stack, id):
+def tWAV(r):
     # riven sounds can have garbage at the end
     # force the issue by reading only the described size
     rawsize = r.channels * (r.samplesize / 8) * r.samplecount
@@ -204,7 +204,7 @@ def tWAV(r, stack, id):
 
 @resource_url('NAME')
 @json_view
-def NAME(r, stack, id):
+def NAME(r):
     return r.names
 
 event_names = {
@@ -329,7 +329,7 @@ def CARD_HSPT(i, r):
 
 @resource_url('RMAP')
 @json_view
-def RMAP(r, stack, id):
+def RMAP(r):
     return r.codes
 
 @metaresource_part('CARD', 'SLST')
