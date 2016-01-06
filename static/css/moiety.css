@@ -1,104 +1,104 @@
 body
 {
-	background-color: black;
+    background-color: black;
 }
 
 #canvas
 {
-	display: block;
-	width: 608px;
-	height: 392px;
-	margin: auto;
-	border-radius: 10px;
+    display: block;
+    width: 608px;
+    height: 392px;
+    margin: auto;
+    border-radius: 10px;
 }
 
 #log
 {
-	width: 608px;
-	margin: auto;
-	margin-top: 1em;
-	background-color: #333;
-	color: #aaa;
-	font-family: sans-serif;
-	font-size: 0.8em;
-	border: 1px solid #400;
+    width: 608px;
+    margin: auto;
+    margin-top: 1em;
+    background-color: #333;
+    color: #aaa;
+    font-family: sans-serif;
+    font-size: 0.8em;
+    border: 1px solid #400;
 }
 
 #log a:link, #log a:visited
 {
-	color: #aaa;
-	font-weight: bold;
-	text-decoration: none;
+    color: #aaa;
+    font-weight: bold;
+    text-decoration: none;
 }
 
 #log a:hover
 {
-	text-decoration: underline;
+    text-decoration: underline;
 }
 
 #log div.jquery-console-inner
 {
-	height: 100px;
-	padding: 0.5em;
-	overflow: auto;
+    height: 100px;
+    padding: 0.5em;
+    overflow: auto;
 }
 
 #log div.jquery-console-prompt-box
 {
-	font-family: monospace;
-	color: #eee;
+    font-family: monospace;
+    color: #eee;
 }
 
 #log div.jquery-console-focus span.jquery-console-cursor
 {
-	background-color: #eee;
-	color: #333;
+    background-color: #eee;
+    color: #333;
 }
 
 #log .jquery-console-message-error
 {
-	color: #e00;
+    color: #e00;
 }
 
 .status
 {
-	display: inline;
-	background-color: #000;
-	font-size: 0.4em;
-	border-radius: 4px;
-	padding: 1px;
-	margin-left: 0.7em;
-	color: black;
-	border: 1px solid black;
-	font-weight: bold;
+    display: inline;
+    background-color: #000;
+    font-size: 0.4em;
+    border-radius: 4px;
+    padding: 1px;
+    margin-left: 0.7em;
+    color: black;
+    border: 1px solid black;
+    font-weight: bold;
 }
 
 .status-pending:before
 {
-	content: "pending";
+    content: "pending";
 }
 
 .status-pending
 {
-	background-color: yellow;
+    background-color: yellow;
 }
 
 .status-done:before
 {
-	content: "done";
+    content: "done";
 }
 
 .status-done
 {
-	background-color: green;
+    background-color: green;
 }
 
 .status-failed:before
 {
-	content: "failed";
+    content: "failed";
 }
 
 .status-failed
 {
-	background-color: red;
+    background-color: red;
 }
