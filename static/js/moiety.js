@@ -192,21 +192,16 @@ var state = {
 				// load new card
 				log.status("moving to card " + cardid, d);
 				var pCard = loadResource(stackname, 'CARD', cardid);
-				var pPLST = loadResource(stackname, 'PLST', cardid);
-				var pBLST = loadResource(stackname, 'BLST', cardid);
-				var pHSPT = loadResource(stackname, 'HSPT', cardid);
-                var pSLST = loadResource(stackname, 'SLST', cardid);
-				var when = jQuery.when(pCard, pPLST, pBLST, pHSPT, pSLST);
-				when.fail(d.reject).done(function(card, plst, blst, hspt, slst) {
+				pCard.fail(d.reject).done(function(card) {
 					// set variables
 					state.cardid = cardid;
 					state.currentHotspot = null;
 					state.setCursor(null);
-					state.card = card[0];
-					state.plst = plst[0];
-					state.blst = blst[0];
-					state.hspt = hspt[0];
-                    state.slst = slst[0];
+					state.card = card.card;
+					state.plst = card.plst;
+					state.blst = card.blst;
+					state.hspt = card.hspt;
+                    state.slst = card.slst;
 					
 					// set up plst state
 					jQuery.each(state.plst, function(index, p) {

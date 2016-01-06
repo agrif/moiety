@@ -53,6 +53,7 @@ def get_resource(stack, type, id):
     raise IOError("could not load resource")
 
 resource_urls = []
+metaresources = {}
 resource_url_format = '/resources/<stack>/{type}/<int:id>{ext}'
 def resource_url(resource_type, ext='.json'):
     def _resource_url(func):
@@ -69,6 +70,32 @@ def resource_url(resource_type, ext='.json'):
         return inner
     return _resource_url
 
+def metaresource_url(resource_type, ext='.json'):
+    def _metaresource_url(func):
+        url = resource_url_format.format(type=resource_type, ext=ext)
+        @app.route(url)
+        @functools.wraps(func)
+        def inner(stack, id):
+            kwargs = {k.lower(): v(stack, id) for k, v in metaresources[resource_type].items()}
+            return func(**kwargs)
+        resource_urls.append((url, resource_type, inner))
+        metaresources[resource_type] = {}
+        return inner
+    return _metaresource_url
+
+def metaresource_part(parent_type, resource_type):
+    def _metaresource_part(func):
+        @functools.wraps(func)
+        def inner(stack, id):
+            try:
+                r = get_resource(stack, resource_type, id)
+            except IOError:
+                abort(404)
+            return func(r)
+        metaresources[parent_type][resource_type] = inner
+        return inner
+    return _metaresource_part
+
 def resource_ids(stack, restype):
     for fname in stack_files[stack]:
         a = get_archive(fname)
@@ -79,8 +106,8 @@ def extract_static(force):
     for stack in stack_files:
         for url, restype, gen in resource_urls:
             for n in resource_ids(stack, restype):
-                if restype == 'HSPT' and stack == 'gspit' and n == 12:
-                    # FIXME segfaults, dunno why
+                if restype == 'CARD' and stack == 'gspit' and n == 12:
+                    # FIXME the HSPT segfaults, dunno why
                     continue
                 path = '.' + url.replace('<stack>', stack).replace('<int:id>', str(n))
                 if os.path.exists(path) and not force:
@@ -243,18 +270,21 @@ def structure_script(script):
             r[event_names.get(event, event)] = list(structure_commands(cmds))
     return r
 
-@resource_url('CARD')
+@metaresource_url('CARD')
 @json_view
-def CARD(r, stack, id):
+def CARD(**kwargs):
+    return kwargs
+
+@metaresource_part('CARD', 'CARD')
+def CARD_CARD(r):
     resp = {}
     resp['name'] = r.name_record
     resp['zip_mode'] = r.zip_mode
     resp['script'] = structure_script(r.script)
     return resp
 
-def json_record_list(f):
+def record_list(f):
     @functools.wraps(f)
-    @json_view
     def inner(r, *args, **kwargs):
         # these record-based types start at 1, so use a dummy object for 0
         resp = [{}]
@@ -264,25 +294,25 @@ def json_record_list(f):
         return resp
     return inner
 
-@resource_url('PLST')
-@json_record_list
-def PLST(i, r, stack, id):
+@metaresource_part('CARD', 'PLST')
+@record_list
+def CARD_PLST(i, r):
     left, right, top, bottom = r.rect(i)
     bitmap_id = r.bitmap_id(i)
     obj = dict(left=left, right=right, top=top, bottom=bottom)
     obj['bitmap'] = bitmap_id
     return obj
 
-@resource_url('BLST')
-@json_record_list
-def BLST(i, r, stack, id):
+@metaresource_part('CARD', 'BLST')
+@record_list
+def CARD_BLST(i, r):
     enabled = r.enabled(i)
     hotspot_id = r.hotspot_id(i)
     return dict(enabled=enabled, hotspot_id=hotspot_id)
 
-@resource_url('HSPT')
-@json_record_list
-def HSPT(i, r, stack, id):
+@metaresource_part('CARD', 'HSPT')
+@record_list
+def CARD_HSPT(i, r):
     blst_id = r.blst_id(i)
     name_record = r.name_record(i)
     left, right, top, bottom = r.rect(i)
@@ -302,9 +332,9 @@ def HSPT(i, r, stack, id):
 def RMAP(r, stack, id):
     return r.codes
 
-@resource_url('SLST')
-@json_record_list
-def SLST(i, r, stack, id):
+@metaresource_part('CARD', 'SLST')
+@record_list
+def CARD_SLST(i, r):
     sounds = []
     for j in range(r.count(i)):
         sound_id = r.sound_id(i, j)

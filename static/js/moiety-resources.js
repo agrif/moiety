@@ -93,10 +93,6 @@ function prefetchStackWithPriority(priority, stack) {
 
 function prefetchCardWithPriority(priority, stack, cardid) {
 	prefetchWithPriority(priority, stack, 'CARD', cardid);
-	prefetchWithPriority(priority, stack, 'PLST', cardid);
-	prefetchWithPriority(priority, stack, 'BLST', cardid);
-	prefetchWithPriority(priority, stack, 'HSPT', cardid);
-	prefetchWithPriority(priority, stack, 'SLST', cardid);
 }
 
 function prefetchScriptWithPriority(priority, script, stack, cardid) {
@@ -149,38 +145,26 @@ function prefetchWithPriority(priority, stack, type, id) {
 	var res = loadResourceWithPriority(priority, stack, type, id);
 	
 	switch (type) {
-	case 'PLST':
-		res.done(function(plst) {
-			jQuery.each(plst.slice(1), function(i, v) {
-				loadResourceWithPriority(priority, stack, 'tBMP', v.bitmap);
-			});
-		});
-		break;
 	case 'CARD':
 		res.done(function(card) {
-			jQuery.each(card.script, function(h, s) {
+			jQuery.each(card.card.script, function(h, s) {
 				prefetchScriptWithPriority(priority, s, stack, id);
 			});
-		});
-		break;
-	case 'HSPT':
-		res.done(function(hspt) {
-			jQuery.each(hspt.slice(1), function(i, v) {
+			jQuery.each(card.plst.slice(1), function(i, v) {
+				loadResourceWithPriority(priority, stack, 'tBMP', v.bitmap);
+			});
+			jQuery.each(card.hspt.slice(1), function(i, v) {
 				jQuery.each(v.script, function(h, s) {
 					prefetchScriptWithPriority(priority, s, stack, id);
 				});
 			});
-		});
-		break;
-    case 'SLST':
-        res.done(function(slst) {
-            jQuery.each(slst.slice(1), function(i, v) {
+            jQuery.each(card.slst.slice(1), function(i, v) {
                 jQuery.each(v.sounds, function(h, s) {
                     loadResourceWithPriority(priority, stack, 'tWAV', s.sound_id);
                 });
             });
-        });
-        break;
+		});
+		break;
 	};
 }
 
