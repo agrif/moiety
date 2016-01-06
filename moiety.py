@@ -155,12 +155,10 @@ def tMOV(r, stack, id):
 @resource_url('tWAV', '.wav')
 @content_type('audio/wav')
 def tWAV(r, stack, id):
-    inbuf = ""
-    while True:
-        d = r.read(4096)
-        inbuf += d
-        if not d:
-            break
+    # riven sounds can have garbage at the end
+    # force the issue by reading only the described size
+    rawsize = r.channels * (r.samplesize / 8) * r.samplecount
+    inbuf = r.read(rawsize)
     
     outbuf = StringIO.StringIO()
     wav = wave.open(outbuf, 'wb')
