@@ -591,7 +591,7 @@ var Router = Backbone.Router.extend({
     },
     
     gotoCard: function(stackname, cardid) {
-        state.gotoCard(stackname, cardid);
+        state.gotoCard(stackname, parseInt(cardid));
     }
 });
 

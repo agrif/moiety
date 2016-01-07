@@ -65,7 +65,7 @@ function renderVarTable() {
             }
             row = $('<tr></tr>');
         }        
-        row.append($('<td class="name">' + v[0] + '</td><td class="value">' + v[1] + '</td>'));
+        row.append($('<td class="name">' + v[0] + '</td><td class="value">' + JSON.stringify(v[1]) + '</td>'));
     });
     if (row) {
         table.append(row);
@@ -147,22 +147,185 @@ DebugView.addTab('Variables', {
     }
 });
 
-DebugView.addTab('CARD', {
+DebugView.addTab('Resources', {
     initialize: function() {
         this.listenTo(state, 'change:cardid', this.render);
+        this.stack = null;
+        this.type = null;
+        this.id = null;
+        this.res = null;
+        this.raw = false;
+        this.openResource('aspit', 'tBMP', 1);
+    },
+
+    cardTypes: ['CARD', 'PLST', 'BLST', 'HSPT', 'SLST'],
+    
+    openResource: function(stack, type, id) {
+        var view = this;
+        var effType = type;
+        if (jQuery.inArray(type, this.cardTypes) > -1) {
+            effType = 'CARD';
+        }
+        view.stack = stack;
+        view.type = type;
+        view.id = id;
+        loadResource(stack, effType, id).fail(function() {
+            view.res = null;
+            view.render();
+        }).then(function(r) {
+            view.res = r;
+            if (effType == 'CARD') {
+                view.res = view.res[type.toLowerCase()];
+            }
+            view.render();
+        });
+    },
+
+    rendertBMP: function(el, r) {
+        el.append(renderVarTable(2,
+            ['width', r.width],
+            ['height', r.height]
+        ));
+        el.append(r);
+    },
+
+    rendertWAV: function(el, r) {
+        el.append(renderVarTable(2,
+            ['duration', r.duration]
+        ));
+        r.controls = true;
+        el.append(r);
+    },
+
+    rendertMOV: function(el, r) {
+        el.append(renderVarTable(2,
+            ['width', r.width],
+            ['height', r.height],
+            ['duration', r.duration]
+        ));
+        r.controls = true;
+        el.append(r);
+    },
+
+    renderRaw: function(el, r) {
+        var view = this;
+        var top = $('<div id="rawtoggle"></div>');
+        el.append(top);
+        if (this.raw) {
+            var b = $('<a class="link">(view pretty)</a>');
+            b.click(function() {
+                view.raw = false;
+                view.render();
+            });
+            top.append(b);
+            
+            var raw = $('<pre></pre>');
+            raw.text(JSON.stringify(r, null, 2));
+            el.append(raw);
+        } else {
+            var b = $('<a class="link">(view raw)</a>');
+            b.click(function() {
+                view.raw = true;
+                view.render();
+            });
+            top.append(b);
+        }
+        return this.raw;
+    },
+
+    renderCARD: function(el, r) {
+        if (this.renderRaw(el, r))
+            return;
+        var name = r.name;
+        if (name >= 0 && this.stack == state.stackname)
+            name = state.cardNames[name];
+        el.append(renderVarTable(2,
+            ['zip_mode', r.zip_mode],
+            ['name', name]
+        ));
+        el.append(renderScript(r.script));
+    },
+
+    renderPLST: function(el, r) {
+        if (this.renderRaw(el, r))
+            return;
+        el.append('No pretty renderer for this resource.');
+    },
+
+    renderBLST: function(el, r) {
+        if (this.renderRaw(el, r))
+            return;
+        el.append('No pretty renderer for this resource.');
+    },
+
+    renderHSPT: function(el, r) {
+        if (this.renderRaw(el, r))
+            return;
+        el.append('No pretty renderer for this resource.');
+    },
+
+    renderSLST: function(el, r) {
+        if (this.renderRaw(el, r))
+            return;
+        el.append('No pretty renderer for this resource.');
+    },
+
+    renderNAME: function(el, r) {
+        if (this.renderRaw(el, r))
+            return;
+        el.append('No pretty renderer for this resource.');
+    },
+
+    renderRMAP: function(el, r) {
+        if (this.renderRaw(el, r))
+            return;
+        el.append('No pretty renderer for this resource.');
     },
 
     render: function() {
-        if (!state.card)
-            return;
-        var name = state.card.name;
-        if (name >= 0)
-            name = state.cardNames[name];
-        this.$el.html(renderVarTable(2,
-            ['zip_mode', state.card.zip_mode],
-            ['name', name]
-        ));
-        this.$el.append(renderScript(state.card.script));
+        var view = this;
+        this.$el.empty();
+        var form = $('<form id="resource"></form>');
+        form.append($('<label for="type">Look up:</label>'));
+        form.append($('<input type="text" id="stack" placeholder="stack" value="' + this.stack + '"></input>'));
+        form.append($('<input type="text" id="type" placeholder="TYPE" value="' + this.type + '"></input>'));
+        form.append($('<input type="number" id="id" min="1" value="' + this.id + '"></input>'));
+        form.append($('<input type="submit" value="Go">'));
+        form.submit(function(ev) {
+            ev.preventDefault();
+            var stack = $('form#resource > input#stack').val();
+            var type = $('form#resource > input#type').val();
+            var id = $('form#resource > input#id').val();
+            view.openResource(stack, type, id);
+        });
+        this.$el.append(form);
+        
+        if (state.cardid) {
+            var list = $('<div id="thiscard">This card: </div>');
+            jQuery.each(this.cardTypes, function(i, ty) {
+                var el = $('<a class="link"></a>');
+                el.text(ty);
+                list.append(el);
+                list.append(' ');
+                el.click(function() {
+                    view.openResource(state.stackname, ty, state.cardid);
+                });
+            });
+            this.$el.append(list);
+        }
+        
+        var res = $('<div id="resource"></div>');
+        if (this.res) {
+            var renderer = this['render' + this.type];
+            if (renderer) {
+                renderer.apply(this, [res, this.res]);
+            } else {
+                res.text("No renderer for " + this.type + ".");
+            }
+        } else {
+            res.text("Resource not found.");
+        }
+        this.$el.append(res);
     }
 });
 

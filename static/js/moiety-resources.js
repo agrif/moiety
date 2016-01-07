@@ -23,10 +23,12 @@ function loadResourceWithPriority(priority, stack, type, id) {
     }
     var url = "resources/" + stack + "/" + type + "/" + id + ext;
     
-    var cached = resources.getItem(url);
-    if (cached != null) {
-        resources.setItem(url, cached, {priority: priority});
-        return cached;      
+    if (resources) {
+        var cached = resources.getItem(url);
+        if (cached != null) {
+            resources.setItem(url, cached, {priority: priority});
+            return cached;      
+        }
     }
     
     switch (type) {
@@ -78,8 +80,12 @@ function loadResourceWithPriority(priority, stack, type, id) {
         p = jQuery.getJSON(url);
     }
     
-    log.status('loading <a href="' + url + '">' + url + '</a>', p);
-    resources.setItem(url, p, {priority: priority});
+    if (log) {
+        log.status('loading <a href="' + url + '">' + url + '</a>', p);
+    }
+    if (resources) {
+        resources.setItem(url, p, {priority: priority});
+    }
     return p;
 }
 
