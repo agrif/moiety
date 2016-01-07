@@ -1,6 +1,8 @@
 body
 {
     background-color: black;
+    color: #aaa;
+    font-family: sans-serif;
 }
 
 #canvas
@@ -12,14 +14,34 @@ body
     border-radius: 10px;
 }
 
+#buttonbar
+{
+    width: 608px;
+    margin: auto;
+    margin-top: 5px;
+    padding-right: 5px;
+    text-align: right;
+    font-size: 0.8em;
+    color: #333;
+}
+
+#buttonbar a.link
+{
+    color: #333;
+    margin-left: 3em;
+}
+
+#buttonbar a.link:hover
+{
+    color: #aaa;
+}
+
 .panel
 {
     width: 608px;
     margin: auto;
     margin-top: 1em;
     background-color: #333;
-    color: #aaa;
-    font-family: sans-serif;
     font-size: 0.8em;
     border: 1px solid #400;
 }

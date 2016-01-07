@@ -76,6 +76,24 @@ var state = {
         state.trigger('change:' + name, state);
     },
 
+    loadSave: function(save) {
+        log.message('loading...');
+        var dat = JSON.parse(save);
+        state.variables = jQuery.extend(true, {}, dat.variables);
+        state.gotoCard(dat.stackname, dat.cardid);
+    },
+
+    save: function() {
+        log.message('saving...');
+        var save = {
+            stackname: state.stackname,
+            cardid: state.cardid,
+            variables: state.variables,
+            timestamp: new Date().getTime()
+        };
+        return JSON.stringify(save);
+    },
+
     onMouseMove: function(e) {
         if (state.ignoreMouse)
             return;
@@ -585,6 +603,47 @@ var state = {
 
 _.extend(state, Backbone.Events);
 
+var ButtonBarView = Backbone.View.extend({
+    initialize: function() {
+        this.render();
+    },
+
+    render: function() {
+        var view = this;
+        this.$el.empty();
+        if (typeof(Storage) !== "undefined") {
+            // we can use localStorage
+            if ('moietySave' in localStorage) {
+                var l = $('<a class="link"></a>');
+                l.text('load game');
+                l.click(function() {
+                    state.loadSave(localStorage.moietySave);
+                    view.render();
+                });
+                this.$el.append(l);
+            }
+
+            var l = $('<a class="link"></a>');
+            l.text('save game');
+            l.click(function() {
+                localStorage.moietySave = state.save();
+                view.render();
+            });
+            this.$el.append(l);
+
+            var l = $('<a class="link"></a>');
+            l.text('copy/paste');
+            l.click(function() {
+                var save = state.save();
+                save = window.prompt('Copy or Paste game save here.', save);
+                state.loadSave(save);
+                view.render();
+            });
+            this.$el.append(l);
+        }
+    }
+});
+
 var Router = Backbone.Router.extend({
     routes: {
         ":stackname/:cardid": "gotoCard"
@@ -598,6 +657,7 @@ var Router = Backbone.Router.extend({
 var rtr;
 $(function() {
     state.setup($('#canvas'));
+    var v = new ButtonBarView({el: $("#buttonbar")});
     rtr = new Router;
     if (!Backbone.history.start())
         state.gotoCard('aspit', 1);
