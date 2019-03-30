@@ -5,6 +5,9 @@
 use moiety::*;
 
 async fn go() -> Result<(), MhkError> {
+    for_each_riven!(|r| => {
+        println!("found resource type: {:?}", r);
+    });
     let fs = LoggingFilesystem::new("root", LocalFilesystem::new("/home/agrif/vault/games/riven/"));
     let map = MhkMap::new(fs);
     let rs = Resources::new_with_map_error(map, MhkFormat);

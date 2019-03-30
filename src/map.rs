@@ -17,6 +17,7 @@ pub trait Stack: Copy + std::cmp::Eq + std::hash::Hash {
     fn letter(&self) -> &'static str;
 }
 
+#[macro_export]
 macro_rules! stack {
     ( $tyname:ident, { $($t:ident ( $name:expr, $letter:expr ), )* } ) => {
         #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]

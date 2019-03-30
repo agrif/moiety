@@ -9,8 +9,9 @@ pub trait FormatFor<I, R: ResourceType>: Format<I> {
     fn convert<'a>(&'a self, input: I) -> FutureObjResult<'a, R::Data, Self::Error> where I: 'a;
 }
 
+#[macro_export]
 macro_rules! resources {
-    ( $set_name:ident, { $(($enum:ident, $data:ty, $cname:ident, $name:expr),)* } ) => {
+    ( $set_name:ident, $macro_name:ident, { $(($enum:ident, $data:ty, $cname:ident, $name:expr),)* } ) => {
         pub enum $set_name<D> {
             $(
                 $enum(refl::Id<D, $data>),
@@ -22,6 +23,18 @@ macro_rules! resources {
                 pub const $cname: Self = $set_name::$enum(refl::Id::REFL);
             }
         )*
+
+        #[macro_export]
+        macro_rules! $macro_name {
+            ( |$n:ident| => $body:block ) => {
+                $(
+                    {
+                        let $n = $set_name::$enum(refl::Id::REFL);
+                        $body;
+                    }
+                )*
+            }
+        }
 
         impl<D> Copy for $set_name<D> {}
 
@@ -39,7 +52,11 @@ macro_rules! resources {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 match self {
                     $(
-                        $set_name::$enum(_) => write!(f, stringify!($enum)),
+                        $set_name::$enum(_) => {
+                            write!(f, stringify!($set_name))?;
+                            write!(f, "::")?;
+                            write!(f, stringify!($cname))
+                        },
                     )*
                 }
             }
@@ -58,7 +75,7 @@ macro_rules! resources {
     }
 }
 
-resources!(Riven, {
+resources!(Riven, for_each_riven, {
     (Name, Vec<Name>, NAME, "NAME"),
 });
 
