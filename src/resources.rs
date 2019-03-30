@@ -1,4 +1,4 @@
-use crate::{ResourceMap, Format, FormatFor, ResourceType, Stack};
+use crate::{ResourceMap, Format, FormatFor, ResourceType};
 
 pub struct Resources<M, F, E> {
     map: M,
@@ -27,12 +27,12 @@ impl<M, F, E> Resources<M, F, E> where M: ResourceMap, F: Format<M::Handle>, E: 
         }
     }
 
-    pub async fn open_raw<'a, R: ResourceType + 'a>(&'a self, stack: Stack, typ: R, id: u16) -> Result<M::Handle, E> {
+    pub async fn open_raw<'a, R: ResourceType + 'a>(&'a self, stack: M::Stack, typ: R, id: u16) -> Result<M::Handle, E> {
         let handle = await!(self.map.open_raw(stack, typ, id))?;
         Ok(handle)
     }
 
-    pub async fn open<'a, R: ResourceType + 'a>(&'a self, stack: Stack, typ: R, id: u16) -> Result<R::Data, E> where F: FormatFor<M::Handle, R> {
+    pub async fn open<'a, R: ResourceType + 'a>(&'a self, stack: M::Stack, typ: R, id: u16) -> Result<R::Data, E> where F: FormatFor<M::Handle, R> {
         let handle = await!(self.map.open_raw(stack, typ, id))?;
         let res = await!(self.format.convert(handle))?;
         Ok(res)

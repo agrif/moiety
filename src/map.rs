@@ -3,7 +3,8 @@ use crate::future::*;
 pub trait ResourceMap {
     type Handle;
     type Error;
-    fn open_raw<'a, T: ResourceType + 'a>(&'a self, stack: Stack, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error>;
+    type Stack;
+    fn open_raw<'a, T: ResourceType + 'a>(&'a self, stack: Self::Stack, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error>;
 }
 
 pub trait ResourceType: Copy {
@@ -11,32 +12,37 @@ pub trait ResourceType: Copy {
     fn name(&self) -> &'static str;
 }
 
+pub trait Stack: Copy + std::cmp::Eq + std::hash::Hash {
+    fn name(&self) -> &'static str;
+    fn letter(&self) -> &'static str;
+}
+
 macro_rules! stack {
-    { $($t:ident ( $name:expr, $letter:expr ), )* } => {
+    ( $tyname:ident, { $($t:ident ( $name:expr, $letter:expr ), )* } ) => {
         #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-        pub enum Stack {
+        pub enum $tyname {
             $($t),*
         }
 
-        impl Stack {
-            pub fn name(&self) -> &'static str {
+        impl Stack for $tyname {
+            fn name(&self) -> &'static str {
                 match self {
-                    $( Stack::$t => $name, )*
+                    $( $tyname::$t => $name, )*
                 }
             }
 
-            pub fn letter(&self) -> &'static str {
+            fn letter(&self) -> &'static str {
                 match self {
-                    $( Stack::$t => $letter, )*
+                    $( $tyname::$t => $letter, )*
                 }
             }
         }
     };
 }
 
-stack!{
+stack!(RivenStack, {
     A("aspit", "a"),
     B("bspit", "b"),
-}
+});
 
 

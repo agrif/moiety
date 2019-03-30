@@ -4,12 +4,12 @@ use crate::{Stack, Filesystem, Buffered, ResourceMap, ResourceType, Narrow};
 use crate::future::*;
 
 #[derive(Debug)]
-pub struct MhkMap<F> where F: Filesystem {
+pub struct MhkMap<F, S> where F: Filesystem {
     filesystem: F,
-    stacks: futures::lock::Mutex<HashMap<Stack, Vec<MhkArchive<F::Handle>>>>,
+    stacks: futures::lock::Mutex<HashMap<S, Vec<MhkArchive<F::Handle>>>>,
 }
 
-impl<F> MhkMap<F> where F: Filesystem {
+impl<F, S> MhkMap<F, S> where F: Filesystem, S: Stack {
     pub fn new(filesystem: F) -> Self {
         MhkMap {
             filesystem,
@@ -17,16 +17,17 @@ impl<F> MhkMap<F> where F: Filesystem {
         }
     }
 
-    fn stack_file_names(&self, stack: Stack) -> Vec<String> {
+    fn stack_file_names(&self, stack: S) -> Vec<String> {
         // FIXME multiple files
         vec![format!("{}_Data.MHK", stack.letter())]
     }
 }
 
-impl<F> ResourceMap for MhkMap<F> where F: Filesystem {
+impl<F, S> ResourceMap for MhkMap<F, S> where F: Filesystem, S: Stack {
     type Handle = Narrow<std::rc::Rc<Buffered<F::Handle>>>;
     type Error = MhkError;
-    fn open_raw<'a, T: ResourceType + 'a>(&'a self, stack: Stack, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error> {
+    type Stack = S;
+    fn open_raw<'a, T: ResourceType + 'a>(&'a self, stack: Self::Stack, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error> {
         Box::pin((async move || {
             let mut stacks = await!(self.stacks.lock());
             // make sure this stack is loaded
