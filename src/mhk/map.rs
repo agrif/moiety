@@ -27,7 +27,7 @@ impl<F, S> ResourceMap for MhkMap<F, S> where F: Filesystem, S: Stack {
     type Handle = Narrow<std::rc::Rc<Buffered<F::Handle>>>;
     type Error = MhkError;
     type Stack = S;
-    fn open_raw<'a, T: ResourceType + 'a>(&'a self, stack: Self::Stack, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error> {
+    fn open_raw<'a, T: ResourceType + 'a>(&'a self, stack: S, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error> {
         Box::pin((async move || {
             let mut stacks = await!(self.stacks.lock());
             // make sure this stack is loaded
