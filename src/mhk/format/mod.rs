@@ -10,7 +10,6 @@ impl<R> crate::Format<R> for MhkFormat where R: crate::AsyncRead {
 }
 
 // temporary
-const NAME_LENGTH: u64 = 16;
 impl<R> crate::FormatFor<R, crate::Riven<Vec<crate::Name>>> for MhkFormat where R: crate::AsyncRead {
     fn convert<'a>(&'a self, input: R) -> FutureObjResult<'a, Vec<crate::Name>, MhkError> where R: 'a {
         Box::pin((async move || {
@@ -20,8 +19,8 @@ impl<R> crate::FormatFor<R, crate::Riven<Vec<crate::Name>>> for MhkFormat where 
             let values: Vec<u16> = await!(deserialize_vec_from(&input, &mut pos, field_count as usize))?;
             let mut ret = Vec::with_capacity(offsets.len());
             for (offs, val) in offsets.iter().zip(values) {
-                let mut name = Vec::with_capacity(NAME_LENGTH as usize);
-                await!(input.read_until_at(pos + *offs as u64, NAME_LENGTH, 0, &mut name))?;
+                let mut name = Vec::new();
+                await!(input.read_until_at(pos + *offs as u64, 0, &mut name))?;
                 ret.push(crate::Name {
                     unknown: val,
                     name: std::str::from_utf8(&name[..name.len()-1])?.to_owned(),

@@ -93,9 +93,9 @@ pub trait AsyncRead: Sized {
     }
     
     // size is a hint, not an absolute
-    fn read_until_at<'a>(&'a self, mut pos: u64, size: u64, delim: u8, buf: &'a mut Vec<u8>) -> FutureObjIO<'a, usize> {
+    fn read_until_at<'a>(&'a self, mut pos: u64, delim: u8, buf: &'a mut Vec<u8>) -> FutureObjIO<'a, usize> {
         Box::pin((async move || {
-            let mut smallbuf = vec![0; size as usize];
+            let mut smallbuf = vec![0; RESERVATION_SIZE];
             let mut read = 0;
             loop {
                 // FIXME handle interrupted
@@ -138,8 +138,8 @@ impl<T> AsyncRead for std::rc::Rc<T> where T: AsyncRead {
         (**self).read_exact_at(pos, buf)
     }
 
-    fn read_until_at<'a>(&'a self, pos: u64, size: u64, delim: u8, buf: &'a mut Vec<u8>) -> FutureObjIO<'a, usize> {
-        (**self).read_until_at(pos, size, delim, buf)
+    fn read_until_at<'a>(&'a self, pos: u64, delim: u8, buf: &'a mut Vec<u8>) -> FutureObjIO<'a, usize> {
+        (**self).read_until_at(pos, delim, buf)
     }
 
 }
