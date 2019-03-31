@@ -1,4 +1,4 @@
-use crate::{Stack, Filesystem, ResourceMap, ResourceType};
+use crate::{Stack, Filesystem, FilesystemWrite, ResourceMap, ResourceMapWrite, ResourceType};
 use crate::future::*;
 
 #[derive(Debug)]
@@ -29,5 +29,18 @@ impl<F, S> ResourceMap for DirectMap<F, S> where F: Filesystem, S: Stack {
             ];
             await!(self.filesystem.open(&fname))
         })())
+    }
+}
+
+impl<F, S> ResourceMapWrite for DirectMap<F, S> where F: FilesystemWrite, S: Stack {
+    fn write_raw<'a, T: ResourceType + 'a>(&'a mut self, stack: Self::Stack, typ: T, id: u16, data: &'a [u8]) -> FutureObjResult<'a, (), Self::Error> {
+        Box::pin((async move || {
+            let fname = [
+                stack.name(),
+                typ.name(),
+                &format!("{:05}", id)
+            ];
+            await!(self.filesystem.write(&fname, data))
+        })())   
     }
 }

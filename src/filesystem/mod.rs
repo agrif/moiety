@@ -33,6 +33,10 @@ pub trait Filesystem {
     fn open<'a>(&'a self, path: &'a [&str]) -> FutureObjIO<'a, Self::Handle>;
 }
 
+pub trait FilesystemWrite: Filesystem {
+    fn write<'a>(&'a mut self, path: &'a [&str], data: &'a [u8]) -> FutureObjIO<'a, ()>;
+}
+
 pub trait AsyncRead: Sized {
     fn read_at<'a>(&'a self, pos: u64, buf: &'a mut [u8]) -> FutureObjIO<'a, usize>;
 

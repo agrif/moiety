@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use super::{MhkArchive, MhkError};
-use crate::{Stack, Filesystem, Buffered, ResourceMap, ResourceType, Narrow};
+use crate::{Stack, Filesystem, Buffered, ResourceMap, ResourceMapList, ResourceType, Narrow};
 use crate::future::*;
 
 #[derive(Debug)]
@@ -21,6 +21,22 @@ impl<F, S> MhkMap<F, S> where F: Filesystem, S: Stack {
         // FIXME multiple files
         vec![format!("{}_Data.MHK", stack.letter())]
     }
+
+    async fn ensure_stack(&self, stack: S) -> Result<(), MhkError> {
+        let mut stacks = await!(self.stacks.lock());
+        // make sure this stack is loaded
+        if !stacks.contains_key(&stack) {
+            let names = self.stack_file_names(stack);
+            let archive_futures = names.iter().map(async move |n| {
+                let path = &[n.as_ref()];
+                let handle = await!(self.filesystem.open(path))?;
+                await!(MhkArchive::new(handle))
+            });
+            let archives: Result<Vec<_>, MhkError> = await!(futures::future::join_all(archive_futures)).into_iter().collect();
+            stacks.insert(stack, archives?);
+        }
+        Ok(())
+    }
 }
 
 impl<F, S> ResourceMap for MhkMap<F, S> where F: Filesystem, S: Stack {
@@ -29,19 +45,8 @@ impl<F, S> ResourceMap for MhkMap<F, S> where F: Filesystem, S: Stack {
     type Stack = S;
     fn open_raw<'a, T: ResourceType + 'a>(&'a self, stack: S, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error> {
         Box::pin((async move || {
-            let mut stacks = await!(self.stacks.lock());
-            // make sure this stack is loaded
-            if !stacks.contains_key(&stack) {
-                let names = self.stack_file_names(stack);
-                let archive_futures = names.iter().map(async move |n| {
-                    let path = &[n.as_ref()];
-                    let handle = await!(self.filesystem.open(path))?;
-                    await!(MhkArchive::new(handle))
-                });
-                let archives: Result<Vec<_>, MhkError> = await!(futures::future::join_all(archive_futures)).into_iter().collect();
-                stacks.insert(stack, archives?);
-            }
-            
+            await!(self.ensure_stack(stack))?;
+            let stacks = await!(self.stacks.lock());
             for arc in stacks.get(&stack).unwrap() {
                 let rsrc = arc.open(typ, id);
                 if rsrc.is_ok() {
@@ -50,6 +55,24 @@ impl<F, S> ResourceMap for MhkMap<F, S> where F: Filesystem, S: Stack {
             }
             
             Err(MhkError::ResourceNotFound(Some(stack.name()), typ.name(), id))
+        })())
+    }
+}
+
+impl<F, S> ResourceMapList for MhkMap<F, S> where F: Filesystem, S: Stack {
+    fn list<'a, T: ResourceType + 'a>(&'a self, stack: Self::Stack, typ: T) -> FutureObjResult<'a, Vec<u16>, Self::Error> {
+        Box::pin((async move || {
+            await!(self.ensure_stack(stack))?;
+            let stacks = await!(self.stacks.lock());
+            let mut ret = vec![];
+            for arc in stacks.get(&stack).unwrap() {
+                if let Some(rs) = arc.resources.get(typ.name()) {
+                    for (id, _) in rs {
+                        ret.push(*id);
+                    }
+                }
+            }
+            Ok(ret)
         })())
     }
 }

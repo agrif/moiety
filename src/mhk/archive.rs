@@ -6,19 +6,19 @@ use crate::{AsyncRead, Buffered};
 
 #[derive(Debug)]
 pub struct MhkArchive<R> where R: AsyncRead {
-    handle: std::rc::Rc<Buffered<R>>,
-    files: Vec<FileInfo>,
-    resources: HashMap<String, HashMap<u16, ResourceInfo>>,
+    pub handle: std::rc::Rc<Buffered<R>>,
+    pub files: Vec<FileInfo>,
+    pub resources: HashMap<String, HashMap<u16, ResourceInfo>>,
 }
 
 #[derive(Debug, Clone)]
-struct FileInfo {
+pub struct FileInfo {
     offset: u64,
     size: u64,
 }
 
 #[derive(Debug)]
-struct ResourceInfo {
+pub struct ResourceInfo {
     ty: String,
     id: u16,
     file_table_index: usize,

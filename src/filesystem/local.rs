@@ -1,5 +1,6 @@
 use std::io::Seek;
 use std::io::Read;
+use std::io::Write;
 use crate::future::*;
 
 #[derive(Debug)]
@@ -28,6 +29,24 @@ impl super::Filesystem for LocalFilesystem {
                 file: futures::lock::Mutex::new(f),
             })
         })
+    }
+}
+
+impl super::FilesystemWrite for LocalFilesystem {
+    fn write<'a>(&'a mut self, path: &'a [&str], data: &'a [u8]) -> FutureObjIO<'a, ()> {
+        Box::pin((async move || {
+            let mut subpath = self.root.clone();
+            for part in path {
+                subpath.push(part);
+            }
+
+            if let Some(ref parent) = subpath.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            
+            let mut file = std::fs::File::create(subpath)?;
+            file.write_all(data)
+        })())
     }
 }
 

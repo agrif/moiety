@@ -46,6 +46,16 @@ impl<T> super::Filesystem for LoggingFilesystem<T> where T: super::Filesystem {
     }
 }
 
+impl<T> super::FilesystemWrite for LoggingFilesystem<T> where T: super::FilesystemWrite {
+    fn write<'a>(&'a mut self, path: &'a [&str], data: &'a [u8]) -> FutureObjIO<'a, ()> {
+        Box::pin(async move {
+            let nicepath = format!("[{}]/{}", self.name, path.join("/"));
+            let message = format!("writing {}", nicepath);
+            await!(bracket(message, self.inner.write(path, data), |x| x))
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct LoggingHandle<T> {
     inner: T,

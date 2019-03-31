@@ -2,11 +2,24 @@ use crate::future::*;
 use crate::ResourceType;
 
 pub trait Format<I> {
-    type Error;
+    type Error: failure::Fail;
 }
 
 pub trait FormatFor<I, R: ResourceType>: Format<I> {
     fn convert<'a>(&'a self, input: I) -> FutureObjResult<'a, R::Data, Self::Error> where I: 'a;
+}
+
+#[derive(Fail, Debug)]
+pub enum ConvertError<R: failure::Fail, W: failure::Fail> {
+    #[fail(display = "Error reading: {}", _0)]
+    Read(#[cause] R),
+    #[fail(display = "Error writing: {}", _0)]
+    Write(#[cause] W),
+}
+
+pub trait FormatWriteFor<I, R: ResourceType, F: FormatFor<I, R>> {
+    type WriteError: failure::Fail;
+    fn write<'a>(&'a self, input: I, fmt: &'a F) -> FutureObjResult<'a, Vec<u8>, ConvertError<F::Error, Self::WriteError>> where I: 'a, F: 'a;
 }
 
 #[macro_export]
