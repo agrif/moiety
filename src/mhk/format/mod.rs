@@ -23,7 +23,7 @@ impl<R> crate::FormatFor<R, crate::Riven<Vec<crate::Name>>> for MhkFormat where 
                 await!(input.read_until_at(pos + *offs as u64, 0, &mut name))?;
                 ret.push(crate::Name {
                     unknown: val,
-                    name: std::str::from_utf8(&name[..name.len()-1])?.to_owned(),
+                    name: String::from_utf8_lossy(&name).into_owned(),
                 });
             }
             Ok(ret)
