@@ -94,10 +94,21 @@ macro_rules! resources {
 
 resources!(Riven, for_each_riven, {
     (Name, Vec<Name>, NAME, "NAME"),
+    (PLST, Vec<PictureMeta>, PLST, "PLST"),
 });
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Name {
     pub unknown: u16,
     pub name: String,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct PictureMeta {
+    pub index: u16,
+    pub bitmap_id: u16,
+    pub left: u16,
+    pub top: u16,
+    pub right: u16,
+    pub bottom: u16,
 }

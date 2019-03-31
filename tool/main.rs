@@ -5,10 +5,6 @@
 use moiety::*;
 
 async fn go() -> Result<(), MhkError> {
-    for_each_riven!(|r| => {
-        println!("found resource type: {:?}", r);
-    });
-    
     let fs = LocalFilesystem::new("/home/agrif/vault/games/riven/");
     let outfs = LoggingFilesystem::new("w", LocalFilesystem::new("./local/"));
     
@@ -30,13 +26,10 @@ async fn go() -> Result<(), MhkError> {
     let rs = Resources::new_with_map_error(map, fmt);
     let mut outrs = Resources::new_with_format_error(outmap, outfmt);
     
-    let resource = await!(rs.open(RivenStack::A, Riven::NAME, 2))?;
-    println!("{:?}", Riven::NAME);
-    println!("{:?}", resource);
-
-    let x = await!(rs.write_to(&mut outrs, Riven::NAME));
-
-    println!("{:?}", x);
+    for_each_riven!(|r| => {
+        let x = await!(rs.write_to(&mut outrs, r));
+        println!("{:?}: {:?}", r, x);
+    });
 
     Ok(())
 }

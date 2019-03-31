@@ -30,3 +30,12 @@ impl<R> crate::FormatFor<R, crate::Riven<Vec<crate::Name>>> for MhkFormat where 
         })())
     }
 }
+
+impl<R> crate::FormatFor<R, crate::Riven<Vec<crate::PictureMeta>>> for MhkFormat where R: crate::AsyncRead {
+    fn convert<'a>(&'a self, input: R) -> FutureObjResult<'a, Vec<crate::PictureMeta>, MhkError> where R: 'a {
+        Box::pin((async move || {
+            let mut pos = 0;
+            await!(deserialize_u16_table_from(&input, &mut pos))
+        })())
+    }
+}
