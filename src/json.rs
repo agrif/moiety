@@ -34,7 +34,10 @@ impl<F, R> crate::FormatFor<F, R> for JsonFormat where F: crate::AsyncRead, R: c
             Ok(serde_json::from_slice(&contents)?)
         })())
     }
-    
+
+    fn extension<'a>(&'a self) -> Option<&'a str> {
+        Some(&".json")
+    }
 }
 
 impl<F, R, Fmt> crate::FormatWriteFor<F, R, Fmt> for JsonFormat where F: crate::AsyncRead, R: crate::ResourceType, R::Data: serde::Serialize, Fmt: crate::FormatFor<F, R> {

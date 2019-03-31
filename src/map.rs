@@ -1,10 +1,11 @@
+use crate::FormatFor;
 use crate::future::*;
 
 pub trait ResourceMap {
     type Handle;
     type Error: failure::Fail;
     type Stack;
-    fn open_raw<'a, T: ResourceType + 'a>(&'a self, stack: Self::Stack, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error>;
+    fn open_raw<'a, T: ResourceType + 'a, F: FormatFor<Self::Handle, T>>(&'a self, fmt: &'a F, stack: Self::Stack, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error>;
 }
 
 pub trait ResourceMapList: ResourceMap {
@@ -12,7 +13,7 @@ pub trait ResourceMapList: ResourceMap {
 }
 
 pub trait ResourceMapWrite: ResourceMap {
-    fn write_raw<'a, T: ResourceType + 'a>(&'a mut self, stack: Self::Stack, typ: T, id: u16, data: &'a [u8]) -> FutureObjResult<'a, (), Self::Error>;
+    fn write_raw<'a, T: ResourceType + 'a, F: FormatFor<Self::Handle, T>>(&'a mut self, fmt: &'a F, stack: Self::Stack, typ: T, id: u16, data: &'a [u8]) -> FutureObjResult<'a, (), Self::Error>;
 }
 
 pub trait ResourceType: Copy {

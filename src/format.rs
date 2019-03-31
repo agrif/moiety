@@ -7,6 +7,10 @@ pub trait Format<I> {
 
 pub trait FormatFor<I, R: ResourceType>: Format<I> {
     fn convert<'a>(&'a self, input: I) -> FutureObjResult<'a, R::Data, Self::Error> where I: 'a;
+
+    fn extension<'a>(&'a self) -> Option<&'a str> {
+        None
+    }
 }
 
 #[derive(Fail, Debug)]
