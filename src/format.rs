@@ -93,6 +93,7 @@ macro_rules! resources {
 }
 
 resources!(Riven, for_each_riven, {
+    (BLST, Vec<ButtonMeta>, BLST, "BLST"),
     (Name, Vec<Name>, NAME, "NAME"),
     (PLST, Vec<PictureMeta>, PLST, "PLST"),
 });
@@ -111,4 +112,11 @@ pub struct PictureMeta {
     pub top: u16,
     pub right: u16,
     pub bottom: u16,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+pub struct ButtonMeta {
+    pub index: u16,
+    pub enabled: u16,
+    pub hotspot_id: u16,
 }
