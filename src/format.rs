@@ -99,12 +99,14 @@ resources!(Riven, for_each_riven, {
 });
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct Name {
     pub unknown: u16,
     pub name: String,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct PictureMeta {
     pub index: u16,
     pub bitmap_id: u16,
@@ -115,6 +117,7 @@ pub struct PictureMeta {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct ButtonMeta {
     pub index: u16,
     pub enabled: u16,
