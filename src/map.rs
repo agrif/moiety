@@ -57,6 +57,12 @@ macro_rules! stack {
 stack!(RivenStack, {
     A("aspit", "a"),
     B("bspit", "b"),
+    G("gspit", "g"),
+    J("jspit", "j"),
+    O("ospit", "o"),
+    P("pspit", "p"),
+    R("rspit", "r"),
+    T("tspit", "t"),
 });
 
 

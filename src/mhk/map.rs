@@ -3,23 +3,29 @@ use super::{MhkArchive, MhkError};
 use crate::{Stack, Filesystem, Buffered, ResourceMap, ResourceMapList, ResourceType, Narrow};
 use crate::future::*;
 
-#[derive(Debug)]
 pub struct MhkMap<F, S> where F: Filesystem {
     filesystem: F,
+    stackfiles: HashMap<S, Vec<String>>,
     stacks: futures::lock::Mutex<HashMap<S, Vec<MhkArchive<F::Handle>>>>,
 }
 
 impl<F, S> MhkMap<F, S> where F: Filesystem, S: Stack {
-    pub fn new(filesystem: F) -> Self {
+    pub fn new(filesystem: F, stackfiles: HashMap<S, Vec<&str>>) -> Self {
         MhkMap {
             filesystem,
+            stackfiles: stackfiles.iter().map(|(k, v)| {
+                (*k, v.iter().map(|s| (*s).to_owned()).collect())
+            }).collect(),
             stacks: futures::lock::Mutex::new(HashMap::with_capacity(8 /* FIXME number of stacks */)),
         }
     }
 
     fn stack_file_names(&self, stack: S) -> Vec<String> {
-        // FIXME multiple files
-        vec![format!("{}_Data.MHK", stack.letter())]
+        if let Some(names) = self.stackfiles.get(&stack) {
+            names.clone()
+        } else {
+            vec![format!("{}_Data.MHK", stack.letter())]
+        }
     }
 
     async fn ensure_stack(&self, stack: S) -> Result<(), MhkError> {
