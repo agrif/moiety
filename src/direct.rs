@@ -25,7 +25,7 @@ impl<F, S> ResourceMap for DirectMap<F, S> where F: Filesystem, S: Stack {
             let fname = [
                 stack.name(),
                 typ.name(),
-                &format!("{:06}", id)
+                &format!("{:05}", id)
             ];
             await!(self.filesystem.open(&fname))
         })())

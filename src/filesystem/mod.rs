@@ -12,6 +12,22 @@ pub use narrow::*;
 mod buffered;
 pub use buffered::*;
 
+struct Guard<'a> {
+    buf: &'a mut Vec<u8>,
+    len: usize,
+}
+
+impl<'a> Drop for Guard<'a> {
+    fn drop(&mut self) {
+        unsafe {
+            self.buf.set_len(self.len);
+        }
+    }
+}
+
+// used for read_to_end
+const RESERVATION_SIZE: usize = 32;
+
 pub trait Filesystem {
     type Handle: AsyncRead;
     fn open<'a>(&'a self, path: &'a [&str]) -> FutureObjIO<'a, Self::Handle>;
@@ -39,12 +55,50 @@ pub trait AsyncRead: Sized {
         })())
     }
 
+    fn read_until_end<'a>(&'a self, buf: &'a mut Vec<u8>) -> FutureObjIO<'a, usize> {
+        Box::pin((async move || {
+            let start_len = buf.len();
+            let mut pos = 0;
+            let mut g = Guard { len: buf.len(), buf: buf };
+            let ret;
+            loop {
+                if g.len == g.buf.len() {
+                    unsafe {
+                        g.buf.reserve(RESERVATION_SIZE);
+                        let capacity = g.buf.capacity();
+                        g.buf.set_len(capacity);
+                        // FIXME initialize here...
+                    }
+                }
+
+                match await!(self.read_at(pos, &mut g.buf[g.len..])) {
+                    Ok(0) => {
+                        ret = Ok(g.len - start_len);
+                        break;
+                    },
+                    Ok(n) => {
+                        g.len += n;
+                        pos += n as u64;
+                    },
+                    // FIXME interrupted
+                    Err(e) => {
+                        ret = Err(e);
+                        break;
+                    },
+                }
+            }
+
+            ret
+        })())
+    }
+    
     // size is a hint, not an absolute
     fn read_until_at<'a>(&'a self, mut pos: u64, size: u64, delim: u8, buf: &'a mut Vec<u8>) -> FutureObjIO<'a, usize> {
         Box::pin((async move || {
             let mut smallbuf = vec![0; size as usize];
             let mut read = 0;
             loop {
+                // FIXME handle interrupted
                 let readpart = await!(self.read_at(pos, &mut smallbuf))?;
                 if readpart == 0 {
                     break;

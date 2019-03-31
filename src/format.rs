@@ -79,7 +79,7 @@ resources!(Riven, for_each_riven, {
     (Name, Vec<Name>, NAME, "NAME"),
 });
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Name {
     pub unknown: u16,
     pub name: String,
