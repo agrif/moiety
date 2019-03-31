@@ -9,7 +9,7 @@ async fn go() -> Result<(), MhkError> {
         println!("found resource type: {:?}", r);
     });
     
-    let fs = LoggingFilesystem::new("r", LocalFilesystem::new("/home/agrif/vault/games/riven/"));
+    let fs = LocalFilesystem::new("/home/agrif/vault/games/riven/");
     let outfs = LoggingFilesystem::new("w", LocalFilesystem::new("./local/"));
     
     let map = MhkMap::new(fs, [

@@ -78,6 +78,7 @@ impl<F, S> ResourceMapList for MhkMap<F, S> where F: Filesystem, S: Stack {
                     }
                 }
             }
+            ret.sort();
             Ok(ret)
         })())
     }
