@@ -75,6 +75,11 @@ fn deserialize_commands<'a, R>(reader: &'a R, pos: &'a mut u64) -> Fut<'a, Resul
                         u3,
                     })
                 },
+                (2, &[id]) => {
+                    Ok(crate::Command::GotoCard {
+                        id,
+                    })
+                },
                 (8, &[var, value_count]) => {
                     let mut branches = std::collections::HashMap::with_capacity(value_count as usize);
                     for _ in 0..value_count {

@@ -131,7 +131,7 @@ pub enum Event {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case", tag = "command")]
 pub enum Command {
     DrawBMP {
         tbmp_id: u16,
@@ -143,6 +143,9 @@ pub enum Command {
         u1: u16,
         u2: u16,
         u3: u16,
+    },
+    GotoCard {
+        id: u16,
     },
     Conditional {
         var: u16,
