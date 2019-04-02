@@ -93,10 +93,64 @@ macro_rules! resources {
 }
 
 resources!(Riven, for_each_riven, {
-    (BLST, Vec<ButtonMeta>, BLST, "BLST"),
+    (Blst, Vec<ButtonMeta>, BLST, "BLST"),
+    (Card, Card, CARD, "CARD"),
     (Name, Vec<Name>, NAME, "NAME"),
-    (PLST, Vec<PictureMeta>, PLST, "PLST"),
+    (Plst, Vec<PictureMeta>, PLST, "PLST"),
 });
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct ButtonMeta {
+    pub index: u16,
+    pub enabled: u16,
+    pub hotspot_id: u16,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Card {
+    pub name_rec: i16,
+    pub zip_mode_place: u16,
+    pub script: std::collections::HashMap<Event, Vec<Command>>,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Event {
+    MouseDown,
+    MouseStillDown,
+    MouseUp,
+    MouseEnter,
+    MouseWithin,
+    MouseLeave,
+    LoadCard,
+    CloseCard,
+    OpenCard,
+    DisplayUpdate,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Command {
+    DrawBMP {
+        tbmp_id: u16,
+        left: u16,
+        top: u16,
+        right: u16,
+        bottom: u16,
+        u0: u16,
+        u1: u16,
+        u2: u16,
+        u3: u16,
+    },
+    Conditional {
+        var: u16,
+        branches: std::collections::HashMap<u16, Vec<Command>>,
+    },
+
+    Dummy,
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -116,10 +170,3 @@ pub struct PictureMeta {
     pub bottom: u16,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct ButtonMeta {
-    pub index: u16,
-    pub enabled: u16,
-    pub hotspot_id: u16,
-}

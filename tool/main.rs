@@ -26,10 +26,12 @@ async fn go() -> Result<(), MhkError> {
     let rs = Resources::new_with_map_error(map, fmt);
     let mut outrs = Resources::new_with_format_error(outmap, outfmt);
     
-    for_each_riven!(|r| => {
-        let x = await!(rs.write_to(&mut outrs, r));
-        println!("{:?}: {:?}", r, x);
-    });
+    //for_each_riven!(|r| => {
+    //    let x = await!(rs.write_to(&mut outrs, r));
+    //    println!("{:?}: {:?}", r, x);
+    //});
+    let x = await!(rs.write_to(&mut outrs, Riven::CARD));
+    println!("{:?}", x);
 
     Ok(())
 }
