@@ -27,12 +27,12 @@ impl<F> crate::Format<F> for JsonFormat where F: crate::AsyncRead {
 }
 
 impl<F, R> crate::FormatFor<F, R> for JsonFormat where F: crate::AsyncRead, R: crate::ResourceType, R::Data: for<'a> serde::Deserialize<'a> {
-    fn convert<'a>(&'a self, input: F) -> FutureObjResult<'a, R::Data, Self::Error> where F: 'a {
-        Box::pin((async move || {
+    fn convert<'a>(&'a self, input: F) -> Fut<'a, Result<R::Data, Self::Error>> where F: 'a {
+        fut!({
             let mut contents = Vec::with_capacity(128);
             await!(input.read_until_end(&mut contents))?;
             Ok(serde_json::from_slice(&contents)?)
-        })())
+        })
     }
 
     fn extension<'a>(&'a self) -> Option<&'a str> {
@@ -42,10 +42,10 @@ impl<F, R> crate::FormatFor<F, R> for JsonFormat where F: crate::AsyncRead, R: c
 
 impl<F, R, Fmt> crate::FormatWriteFor<F, R, Fmt> for JsonFormat where F: crate::AsyncRead, R: crate::ResourceType, R::Data: serde::Serialize, Fmt: crate::FormatFor<F, R> {
     type WriteError = serde_json::Error;
-    fn write<'a>(&'a self, input: F, fmt: &'a Fmt) -> FutureObjResult<'a, Vec<u8>, crate::ConvertError<Fmt::Error, Self::WriteError>> where F: 'a, Fmt: 'a {
-        Box::pin((async move || {
+    fn write<'a>(&'a self, input: F, fmt: &'a Fmt) -> Fut<'a, Result<Vec<u8>, crate::ConvertError<Fmt::Error, Self::WriteError>>> where F: 'a, Fmt: 'a {
+        fut!({
             let data = await!(fmt.convert(input)).map_err(crate::ConvertError::Read)?;
             serde_json::to_vec_pretty(&data).map_err(crate::ConvertError::Write)
-        })())
+        })
     }
 }

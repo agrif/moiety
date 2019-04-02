@@ -1,3 +1,4 @@
+use std::io::Result;
 use crate::future::*;
 
 mod local;
@@ -30,18 +31,18 @@ const RESERVATION_SIZE: usize = 32;
 
 pub trait Filesystem {
     type Handle: AsyncRead;
-    fn open<'a>(&'a self, path: &'a [&str]) -> FutureObjIO<'a, Self::Handle>;
+    fn open<'a>(&'a self, path: &'a [&str]) -> Fut<'a, Result<Self::Handle>>;
 }
 
 pub trait FilesystemWrite: Filesystem {
-    fn write<'a>(&'a mut self, path: &'a [&str], data: &'a [u8]) -> FutureObjIO<'a, ()>;
+    fn write<'a>(&'a mut self, path: &'a [&str], data: &'a [u8]) -> Fut<'a, Result<()>>;
 }
 
 pub trait AsyncRead: Sized {
-    fn read_at<'a>(&'a self, pos: u64, buf: &'a mut [u8]) -> FutureObjIO<'a, usize>;
+    fn read_at<'a>(&'a self, pos: u64, buf: &'a mut [u8]) -> Fut<'a, Result<usize>>;
 
-    fn read_exact_at<'a>(&'a self, mut pos: u64, mut buf: &'a mut [u8]) -> FutureObjIO<'a, ()> {
-        Box::pin((async move || {
+    fn read_exact_at<'a>(&'a self, mut pos: u64, mut buf: &'a mut [u8]) -> Fut<'a, Result<()>> {
+        fut!({
             while !buf.is_empty() {
                 match await!(self.read_at(pos, buf))? {
                     0 => return Err(std::io::Error::new(
@@ -56,11 +57,11 @@ pub trait AsyncRead: Sized {
                 }
             }
             Ok(())
-        })())
+        })
     }
 
-    fn read_until_end<'a>(&'a self, buf: &'a mut Vec<u8>) -> FutureObjIO<'a, usize> {
-        Box::pin((async move || {
+    fn read_until_end<'a>(&'a self, buf: &'a mut Vec<u8>) -> Fut<'a, Result<usize>> {
+        fut!({
             let start_len = buf.len();
             let mut pos = 0;
             let mut g = Guard { len: buf.len(), buf: buf };
@@ -93,12 +94,12 @@ pub trait AsyncRead: Sized {
             }
 
             ret
-        })())
+        })
     }
     
     // size is a hint, not an absolute
-    fn read_until_at<'a>(&'a self, mut pos: u64, delim: u8, buf: &'a mut Vec<u8>) -> FutureObjIO<'a, usize> {
-        Box::pin((async move || {
+    fn read_until_at<'a>(&'a self, mut pos: u64, delim: u8, buf: &'a mut Vec<u8>) -> Fut<'a, Result<usize>> {
+        fut!({
             let mut smallbuf = vec![0; RESERVATION_SIZE];
             let mut read = 0;
             loop {
@@ -121,7 +122,7 @@ pub trait AsyncRead: Sized {
                 }
             }
             Ok(read)
-        })())
+        })
     }
 
     fn narrow(self: &std::rc::Rc<Self>, offset: u64, size: u64) -> Narrow<std::rc::Rc<Self>> {
@@ -134,15 +135,15 @@ pub trait AsyncRead: Sized {
 }
 
 impl<T> AsyncRead for std::rc::Rc<T> where T: AsyncRead {
-    fn read_at<'a>(&'a self, pos: u64, buf: &'a mut [u8]) -> FutureObjIO<'a, usize> {
+    fn read_at<'a>(&'a self, pos: u64, buf: &'a mut [u8]) -> Fut<'a, Result<usize>> {
         (**self).read_at(pos, buf)
     }
 
-    fn read_exact_at<'a>(&'a self, pos: u64, buf: &'a mut [u8]) -> FutureObjIO<'a, ()> {
+    fn read_exact_at<'a>(&'a self, pos: u64, buf: &'a mut [u8]) -> Fut<'a, Result<()>> {
         (**self).read_exact_at(pos, buf)
     }
 
-    fn read_until_at<'a>(&'a self, pos: u64, delim: u8, buf: &'a mut Vec<u8>) -> FutureObjIO<'a, usize> {
+    fn read_until_at<'a>(&'a self, pos: u64, delim: u8, buf: &'a mut Vec<u8>) -> Fut<'a, Result<usize>> {
         (**self).read_until_at(pos, delim, buf)
     }
 

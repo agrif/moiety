@@ -11,8 +11,8 @@ impl<R> crate::Format<R> for MhkFormat where R: crate::AsyncRead {
 
 // temporary
 impl<R> crate::FormatFor<R, crate::Riven<crate::Card>> for MhkFormat where R: crate::AsyncRead {
-    fn convert<'a>(&'a self, input: R) -> FutureObjResult<'a, crate::Card, MhkError> where R: 'a {
-        Box::pin((async move || {
+    fn convert<'a>(&'a self, input: R) -> Fut<'a, Result<crate::Card, MhkError>> where R: 'a {
+        fut!({
             let mut pos = 0;
             let name_rec = await!(deserialize_from(&input, &mut pos))?;
             let zip_mode_place = await!(deserialize_from(&input, &mut pos))?;
@@ -22,7 +22,7 @@ impl<R> crate::FormatFor<R, crate::Riven<crate::Card>> for MhkFormat where R: cr
                 zip_mode_place,
                 script,
             })
-        })())
+        })
     }
 }
 
@@ -53,8 +53,8 @@ async fn deserialize_handlers<'a, R>(reader: &'a R, pos: &'a mut u64) -> Result<
 }
 
 // box this one up, because otherwise we make an infinite type
-fn deserialize_commands<'a, R>(reader: &'a R, pos: &'a mut u64) -> FutureObjResult<'a, Vec<crate::Command>, MhkError> where R: crate::AsyncRead {
-    Box::pin((async move || {
+fn deserialize_commands<'a, R>(reader: &'a R, pos: &'a mut u64) -> Fut<'a, Result<Vec<crate::Command>, MhkError>> where R: crate::AsyncRead {
+    fut!({
         let count: u16 = await!(deserialize_from(reader, pos))?;
         let mut commands = Vec::with_capacity(count as usize);
         for _ in 0..count {
@@ -92,21 +92,21 @@ fn deserialize_commands<'a, R>(reader: &'a R, pos: &'a mut u64) -> FutureObjResu
             }?);
         }
         Ok(commands)        
-    })())
+    })
 }
 
 impl<R> crate::FormatFor<R, crate::Riven<Vec<crate::ButtonMeta>>> for MhkFormat where R: crate::AsyncRead {
-    fn convert<'a>(&'a self, input: R) -> FutureObjResult<'a, Vec<crate::ButtonMeta>, MhkError> where R: 'a {
-        Box::pin((async move || {
+    fn convert<'a>(&'a self, input: R) -> Fut<'a, Result<Vec<crate::ButtonMeta>, MhkError>> where R: 'a {
+        fut!({
             let mut pos = 0;
             await!(deserialize_u16_table_from(&input, &mut pos))
-        })())
+        })
     }
 }
 
 impl<R> crate::FormatFor<R, crate::Riven<Vec<crate::Name>>> for MhkFormat where R: crate::AsyncRead {
-    fn convert<'a>(&'a self, input: R) -> FutureObjResult<'a, Vec<crate::Name>, MhkError> where R: 'a {
-        Box::pin((async move || {
+    fn convert<'a>(&'a self, input: R) -> Fut<'a, Result<Vec<crate::Name>, MhkError>> where R: 'a {
+        fut!({
             let mut pos = 0;
             let field_count: u16 = await!(deserialize_from(&input, &mut pos))?;
             let offsets: Vec<u16> = await!(deserialize_vec_from(&input, &mut pos, field_count as usize))?;
@@ -121,16 +121,16 @@ impl<R> crate::FormatFor<R, crate::Riven<Vec<crate::Name>>> for MhkFormat where 
                 });
             }
             Ok(ret)
-        })())
+        })
     }
 }
 
 impl<R> crate::FormatFor<R, crate::Riven<Vec<crate::PictureMeta>>> for MhkFormat where R: crate::AsyncRead {
-    fn convert<'a>(&'a self, input: R) -> FutureObjResult<'a, Vec<crate::PictureMeta>, MhkError> where R: 'a {
-        Box::pin((async move || {
+    fn convert<'a>(&'a self, input: R) -> Fut<'a, Result<Vec<crate::PictureMeta>, MhkError>> where R: 'a {
+        fut!({
             let mut pos = 0;
             await!(deserialize_u16_table_from(&input, &mut pos))
-        })())
+        })
     }
 }
 

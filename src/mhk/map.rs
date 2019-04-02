@@ -49,8 +49,8 @@ impl<F, S> ResourceMap for MhkMap<F, S> where F: Filesystem, S: Stack {
     type Handle = Narrow<std::rc::Rc<Buffered<F::Handle>>>;
     type Error = MhkError;
     type Stack = S;
-    fn open_raw<'a, T: ResourceType + 'a, Fmt: FormatFor<Self::Handle, T>>(&'a self, _fmt: &'a Fmt, stack: S, typ: T, id: u16) -> FutureObjResult<'a, Self::Handle, Self::Error> {
-        Box::pin((async move || {
+    fn open_raw<'a, T: ResourceType + 'a, Fmt: FormatFor<Self::Handle, T>>(&'a self, _fmt: &'a Fmt, stack: S, typ: T, id: u16) -> Fut<'a, Result<Self::Handle, Self::Error>> {
+        fut!({
             await!(self.ensure_stack(stack))?;
             let stacks = await!(self.stacks.lock());
             for arc in stacks.get(&stack).unwrap() {
@@ -61,13 +61,13 @@ impl<F, S> ResourceMap for MhkMap<F, S> where F: Filesystem, S: Stack {
             }
             
             Err(MhkError::ResourceNotFound(Some(stack.name()), typ.name(), id))
-        })())
+        })
     }
 }
 
 impl<F, S> ResourceMapList for MhkMap<F, S> where F: Filesystem, S: Stack {
-    fn list<'a, T: ResourceType + 'a>(&'a self, stack: Self::Stack, typ: T) -> FutureObjResult<'a, Vec<u16>, Self::Error> {
-        Box::pin((async move || {
+    fn list<'a, T: ResourceType + 'a>(&'a self, stack: Self::Stack, typ: T) -> Fut<'a, Result<Vec<u16>, Self::Error>> {
+        fut!({
             await!(self.ensure_stack(stack))?;
             let stacks = await!(self.stacks.lock());
             let mut ret = vec![];
@@ -80,6 +80,6 @@ impl<F, S> ResourceMapList for MhkMap<F, S> where F: Filesystem, S: Stack {
             }
             ret.sort();
             Ok(ret)
-        })())
+        })
     }
 }
