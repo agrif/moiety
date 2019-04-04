@@ -1,4 +1,5 @@
-use crate::{Stack, Filesystem, FilesystemWrite, ResourceMap, ResourceMapWrite, ResourceType, FormatFor};
+use crate::filesystem::{Filesystem, FilesystemWrite};
+use crate::{Stack, ResourceMap, ResourceMapWrite, ResourceType, FormatFor};
 use crate::future::*;
 
 #[derive(Debug)]

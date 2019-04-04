@@ -28,6 +28,7 @@ impl<'a, T> Future for Fut<'a, T> {
     }
 }
 
+#[macro_export]
 macro_rules! fut {
     ($b:block) => {
         Fut(Box::pin((async move || $b)()))

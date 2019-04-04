@@ -1,3 +1,4 @@
+use crate::filesystem::AsyncRead;
 use crate::future::*;
 
 #[derive(Fail, Debug)]
@@ -22,11 +23,11 @@ impl std::convert::From<serde_json::Error> for JsonError {
 
 pub struct JsonFormat;
 
-impl<F> crate::Format<F> for JsonFormat where F: crate::AsyncRead {
+impl<F> crate::Format<F> for JsonFormat where F: AsyncRead {
     type Error = std::io::Error;
 }
 
-impl<F, R> crate::FormatFor<F, R> for JsonFormat where F: crate::AsyncRead, R: crate::ResourceType, R::Data: for<'a> serde::Deserialize<'a> {
+impl<F, R> crate::FormatFor<F, R> for JsonFormat where F: AsyncRead, R: crate::ResourceType, R::Data: for<'a> serde::Deserialize<'a> {
     fn convert<'a>(&'a self, input: F) -> Fut<'a, Result<R::Data, Self::Error>> where F: 'a {
         fut!({
             let mut contents = Vec::with_capacity(128);
@@ -40,7 +41,7 @@ impl<F, R> crate::FormatFor<F, R> for JsonFormat where F: crate::AsyncRead, R: c
     }
 }
 
-impl<F, R, Fmt> crate::FormatWriteFor<F, R, Fmt> for JsonFormat where F: crate::AsyncRead, R: crate::ResourceType, R::Data: serde::Serialize, Fmt: crate::FormatFor<F, R> {
+impl<F, R, Fmt> crate::FormatWriteFor<F, R, Fmt> for JsonFormat where F: AsyncRead, R: crate::ResourceType, R::Data: serde::Serialize, Fmt: crate::FormatFor<F, R> {
     type WriteError = serde_json::Error;
     fn write<'a>(&'a self, input: F, fmt: &'a Fmt) -> Fut<'a, Result<Vec<u8>, crate::ConvertError<Fmt::Error, Self::WriteError>>> where F: 'a, Fmt: 'a {
         fut!({

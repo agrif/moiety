@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use super::{MhkArchive, MhkError};
-use crate::{FormatFor, Stack, Filesystem, Buffered, ResourceMap, ResourceMapList, ResourceType, Narrow};
+use crate::filesystem::{Filesystem, Buffered, Narrow};
+use crate::{FormatFor, Stack, ResourceMap, ResourceMapList, ResourceType};
 use crate::future::*;
 
 pub struct MhkMap<F, S> where F: Filesystem {

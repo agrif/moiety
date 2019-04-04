@@ -10,19 +10,29 @@ extern crate failure;
 extern crate serde_derive;
 
 #[macro_use]
-mod future;
-pub use future::*;
-mod filesystem;
-pub use filesystem::*;
+pub mod future;
+
+pub mod filesystem;
+
+#[macro_use]
+mod resource_type;
+pub use resource_type::*;
+
+#[macro_use]
+mod stack;
+pub use stack::*;
+
 mod resources;
 pub use resources::*;
 mod map;
 pub use map::*;
 mod format;
 pub use format::*;
-mod mhk;
-pub use mhk::*;
 mod direct;
 pub use direct::*;
 mod json;
 pub use json::*;
+pub mod mhk;
+pub use mhk::{MhkError, MhkFormat, MhkMap};
+
+pub mod riven;

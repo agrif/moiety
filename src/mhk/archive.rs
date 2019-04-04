@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use super::MhkError;
 use super::chunks::*;
 use super::utility::*;
-use crate::{AsyncRead, Buffered};
+use crate::filesystem::{AsyncRead, Buffered, Narrow};
 
 #[derive(Debug)]
 pub struct MhkArchive<R> where R: AsyncRead {
@@ -103,7 +103,7 @@ impl<R> MhkArchive<R> where R: AsyncRead {
         })
     }
 
-    pub fn open<T>(&self, typ: T, i: u16) -> Result<crate::Narrow<std::rc::Rc<Buffered<R>>>, MhkError> where T: crate::ResourceType {
+    pub fn open<T>(&self, typ: T, i: u16) -> Result<Narrow<std::rc::Rc<Buffered<R>>>, MhkError> where T: crate::ResourceType {
         self.resources.get(typ.name())
             .and_then(|e| e.get(&i))
             .and_then(|info| self.files.get(info.file_table_index))
