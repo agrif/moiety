@@ -20,7 +20,7 @@ macro_rules! resources {
 
         #[macro_export]
         macro_rules! $macro_name {
-            ( |$n:ident| => $body:block ) => {
+            (|$n:ident| => $body:block ) => {
                 $(
                     {
                         let $n = $set_name::$enum(refl::Id::REFL);

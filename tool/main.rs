@@ -3,6 +3,7 @@
 #![feature(futures_api)]
 
 use moiety::*;
+use riven::Resource;
 
 async fn go() -> Result<(), MhkError> {
     let fs = filesystem::LocalFilesystem::new("/home/agrif/vault/games/riven/");
@@ -21,17 +22,19 @@ async fn go() -> Result<(), MhkError> {
     let outmap = DirectMap::new(outfs);
 
     let fmt = MhkFormat;
-    let outfmt = JsonFormat;
-    
+    // let outfmt = JsonFormat;
+    let outfmt = MhkFormat;
+
     let rs = Resources::new_with_map_error(map, fmt);
     let mut outrs = Resources::new_with_format_error(outmap, outfmt);
-    
-    //for_each_riven!(|r| => {
-    //    let x = await!(rs.write_to(&mut outrs, r));
-    //    println!("{:?}: {:?}", r, x);
-    //});
-    let x = await!(rs.write_to(&mut outrs, riven::Resource::CARD));
-    println!("{:?}", x);
+
+    for_each_riven!(|r| => {
+        let x = await!(rs.write_to(&mut outrs, r));
+        println!("{:?}: {:?}", r, x);
+    });
+
+    // let x = await!(rs.write_to(&mut outrs, riven::Resource::CARD));
+    // println!("{:?}", x);
 
     Ok(())
 }
