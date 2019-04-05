@@ -33,6 +33,10 @@ pub use direct::*;
 mod json;
 pub use json::*;
 pub mod mhk;
-pub use mhk::{MhkError, MhkFormat, MhkMap};
+pub use mhk::{
+    MhkError,
+    MhkFormat,
+    MhkMap,
+};
 
 pub mod riven;

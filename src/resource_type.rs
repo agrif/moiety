@@ -55,7 +55,7 @@ macro_rules! resources {
                 }
             }
         }
-        
+
         impl<D> $crate::ResourceType for $set_name<D> {
             type Data = D;
             fn name(&self) -> &'static str {

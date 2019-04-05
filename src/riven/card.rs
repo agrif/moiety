@@ -1,8 +1,17 @@
-use crate::future::*;
-use crate::filesystem::AsyncRead;
-use crate::mhk::deserialize_from;
-use crate::{MhkError, MhkFormat, FormatFor};
-use super::{Resource, Event, Command, deserialize_handlers};
+use super::{
+    deserialize_handlers,
+    Command,
+    Event,
+    Resource,
+};
+use crate::{
+    filesystem::AsyncRead,
+    future::*,
+    mhk::deserialize_from,
+    FormatFor,
+    MhkError,
+    MhkFormat,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -12,8 +21,14 @@ pub struct Card {
     pub script: std::collections::HashMap<Event, Vec<Command>>,
 }
 
-impl<R> FormatFor<R, Resource<Card>> for MhkFormat where R: AsyncRead {
-    fn convert<'a>(&'a self, input: R) -> Fut<'a, Result<Card, MhkError>> where R: 'a {
+impl<R> FormatFor<R, Resource<Card>> for MhkFormat
+where
+    R: AsyncRead,
+{
+    fn convert<'a>(&'a self, input: R) -> Fut<'a, Result<Card, MhkError>>
+    where
+        R: 'a,
+    {
         fut!({
             let mut pos = 0;
             let name_rec = await!(deserialize_from(&input, &mut pos))?;

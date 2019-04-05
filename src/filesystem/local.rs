@@ -1,8 +1,10 @@
-use std::io::Seek;
-use std::io::Read;
-use std::io::Write;
-use std::io::Result;
 use crate::future::*;
+use std::io::{
+    Read,
+    Result,
+    Seek,
+    Write,
+};
 
 #[derive(Debug)]
 pub struct LocalFilesystem {
@@ -10,7 +12,10 @@ pub struct LocalFilesystem {
 }
 
 impl LocalFilesystem {
-    pub fn new<P>(root: P) -> Self where P: AsRef<std::path::Path> {
+    pub fn new<P>(root: P) -> Self
+    where
+        P: AsRef<std::path::Path>,
+    {
         LocalFilesystem {
             root: root.as_ref().to_owned(),
         }
@@ -19,7 +24,8 @@ impl LocalFilesystem {
 
 impl super::Filesystem for LocalFilesystem {
     type Handle = LocalHandle;
-    fn open<'a>(&'a self, path: &'a [&str]) ->  Fut<'a, Result<Self::Handle>> {
+
+    fn open<'a>(&'a self, path: &'a [&str]) -> Fut<'a, Result<Self::Handle>> {
         fut!({
             let mut subpath = self.root.clone();
             for part in path {
@@ -34,7 +40,11 @@ impl super::Filesystem for LocalFilesystem {
 }
 
 impl super::FilesystemWrite for LocalFilesystem {
-    fn write<'a>(&'a mut self, path: &'a [&str], data: &'a [u8]) -> Fut<'a, Result<()>> {
+    fn write<'a>(
+        &'a mut self,
+        path: &'a [&str],
+        data: &'a [u8],
+    ) -> Fut<'a, Result<()>> {
         fut!({
             let mut subpath = self.root.clone();
             for part in path {
@@ -44,7 +54,7 @@ impl super::FilesystemWrite for LocalFilesystem {
             if let Some(ref parent) = subpath.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            
+
             let mut file = std::fs::File::create(subpath)?;
             file.write_all(data)
         })
@@ -57,7 +67,11 @@ pub struct LocalHandle {
 }
 
 impl super::AsyncRead for LocalHandle {
-    fn read_at<'a>(&'a self, pos: u64, buf: &'a mut [u8]) -> Fut<'a, Result<usize>> {
+    fn read_at<'a>(
+        &'a self,
+        pos: u64,
+        buf: &'a mut [u8],
+    ) -> Fut<'a, Result<usize>> {
         fut!({
             let mut file = await!(self.file.lock());
             file.seek(std::io::SeekFrom::Start(pos))?;
@@ -65,7 +79,11 @@ impl super::AsyncRead for LocalHandle {
         })
     }
 
-    fn read_exact_at<'a>(&'a self, pos: u64, buf: &'a mut [u8]) -> Fut<'a, Result<()>> {
+    fn read_exact_at<'a>(
+        &'a self,
+        pos: u64,
+        buf: &'a mut [u8],
+    ) -> Fut<'a, Result<()>> {
         fut!({
             let mut file = await!(self.file.lock());
             file.seek(std::io::SeekFrom::Start(pos))?;

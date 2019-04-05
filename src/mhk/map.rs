@@ -1,23 +1,46 @@
+use super::{
+    MhkArchive,
+    MhkError,
+};
+use crate::{
+    filesystem::{
+        Buffered,
+        Filesystem,
+        Narrow,
+    },
+    future::*,
+    FormatFor,
+    ResourceMap,
+    ResourceMapList,
+    ResourceType,
+    Stack,
+};
 use std::collections::HashMap;
-use super::{MhkArchive, MhkError};
-use crate::filesystem::{Filesystem, Buffered, Narrow};
-use crate::{FormatFor, Stack, ResourceMap, ResourceMapList, ResourceType};
-use crate::future::*;
 
-pub struct MhkMap<F, S> where F: Filesystem {
+pub struct MhkMap<F, S>
+where
+    F: Filesystem,
+{
     filesystem: F,
     stackfiles: HashMap<S, Vec<String>>,
     stacks: futures::lock::Mutex<HashMap<S, Vec<MhkArchive<F::Handle>>>>,
 }
 
-impl<F, S> MhkMap<F, S> where F: Filesystem, S: Stack {
+impl<F, S> MhkMap<F, S>
+where
+    F: Filesystem,
+    S: Stack,
+{
     pub fn new(filesystem: F, stackfiles: HashMap<S, Vec<&str>>) -> Self {
         MhkMap {
             filesystem,
-            stackfiles: stackfiles.iter().map(|(k, v)| {
-                (*k, v.iter().map(|s| (*s).to_owned()).collect())
-            }).collect(),
-            stacks: futures::lock::Mutex::new(HashMap::with_capacity(8 /* FIXME number of stacks */)),
+            stackfiles: stackfiles
+                .iter()
+                .map(|(k, v)| (*k, v.iter().map(|s| (*s).to_owned()).collect()))
+                .collect(),
+            stacks: futures::lock::Mutex::new(HashMap::with_capacity(
+                8, // FIXME number of stacks
+            )),
         }
     }
 
@@ -39,18 +62,32 @@ impl<F, S> MhkMap<F, S> where F: Filesystem, S: Stack {
                 let handle = await!(self.filesystem.open(path))?;
                 await!(MhkArchive::new(handle))
             });
-            let archives: Result<Vec<_>, MhkError> = await!(futures::future::join_all(archive_futures)).into_iter().collect();
+            let archives: Result<Vec<_>, MhkError> =
+                await!(futures::future::join_all(archive_futures))
+                    .into_iter()
+                    .collect();
             stacks.insert(stack, archives?);
         }
         Ok(())
     }
 }
 
-impl<F, S> ResourceMap for MhkMap<F, S> where F: Filesystem, S: Stack {
-    type Handle = Narrow<std::rc::Rc<Buffered<F::Handle>>>;
+impl<F, S> ResourceMap for MhkMap<F, S>
+where
+    F: Filesystem,
+    S: Stack,
+{
     type Error = MhkError;
+    type Handle = Narrow<std::rc::Rc<Buffered<F::Handle>>>;
     type Stack = S;
-    fn open_raw<'a, T: ResourceType + 'a, Fmt: FormatFor<Self::Handle, T>>(&'a self, _fmt: &'a Fmt, stack: S, typ: T, id: u16) -> Fut<'a, Result<Self::Handle, Self::Error>> {
+
+    fn open_raw<'a, T: ResourceType + 'a, Fmt: FormatFor<Self::Handle, T>>(
+        &'a self,
+        _fmt: &'a Fmt,
+        stack: S,
+        typ: T,
+        id: u16,
+    ) -> Fut<'a, Result<Self::Handle, Self::Error>> {
         fut!({
             await!(self.ensure_stack(stack))?;
             let stacks = await!(self.stacks.lock());
@@ -60,14 +97,26 @@ impl<F, S> ResourceMap for MhkMap<F, S> where F: Filesystem, S: Stack {
                     return rsrc;
                 }
             }
-            
-            Err(MhkError::ResourceNotFound(Some(stack.name()), typ.name(), id))
+
+            Err(MhkError::ResourceNotFound(
+                Some(stack.name()),
+                typ.name(),
+                id,
+            ))
         })
     }
 }
 
-impl<F, S> ResourceMapList for MhkMap<F, S> where F: Filesystem, S: Stack {
-    fn list<'a, T: ResourceType + 'a>(&'a self, stack: Self::Stack, typ: T) -> Fut<'a, Result<Vec<u16>, Self::Error>> {
+impl<F, S> ResourceMapList for MhkMap<F, S>
+where
+    F: Filesystem,
+    S: Stack,
+{
+    fn list<'a, T: ResourceType + 'a>(
+        &'a self,
+        stack: Self::Stack,
+        typ: T,
+    ) -> Fut<'a, Result<Vec<u16>, Self::Error>> {
         fut!({
             await!(self.ensure_stack(stack))?;
             let stacks = await!(self.stacks.lock());

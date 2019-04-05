@@ -1,8 +1,8 @@
-use crate::Format;
-use crate::filesystem::AsyncRead;
 use super::MhkError;
 use crate::{
+    filesystem::AsyncRead,
     future::*,
+    Format,
     FormatFor,
     FormatWriteFor,
     ResourceType,
@@ -11,7 +11,10 @@ use crate::{
 #[derive(Debug)]
 pub struct MhkFormat;
 
-impl<R> Format<R> for MhkFormat where R: AsyncRead {
+impl<R> Format<R> for MhkFormat
+where
+    R: AsyncRead,
+{
     type Error = MhkError;
 }
 

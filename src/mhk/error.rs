@@ -13,19 +13,13 @@ pub enum MhkError {
 }
 
 impl std::convert::From<std::io::Error> for MhkError {
-    fn from(err: std::io::Error) -> Self {
-        MhkError::Io(err)
-    }
+    fn from(err: std::io::Error) -> Self { MhkError::Io(err) }
 }
 
 impl std::convert::From<bincode::Error> for MhkError {
-    fn from(err: bincode::Error) -> Self {
-        MhkError::Decode(err)
-    }
+    fn from(err: bincode::Error) -> Self { MhkError::Decode(err) }
 }
 
 impl std::convert::From<std::str::Utf8Error> for MhkError {
-    fn from(err: std::str::Utf8Error) -> Self {
-        MhkError::Utf8(err)
-    }
+    fn from(err: std::str::Utf8Error) -> Self { MhkError::Utf8(err) }
 }
