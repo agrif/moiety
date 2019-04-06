@@ -247,7 +247,7 @@ where
                 (9, &[hotspot_id]) => Ok(EnableHotspot { hotspot_id }),
                 (10, &[hotspot_id]) => Ok(DisableHotspot { hotspot_id }),
 
-                // (12, &[u0]) unknown
+                (12, &[u0]) => Ok(Unknown { cmd: 12, args: vec![u0] }),
                 (13, &[cursor]) => Ok(SetCursor { cursor }),
                 (14, &[ms, u0]) => Ok(Pause { ms, u0 }),
                 
@@ -303,10 +303,10 @@ where
                     code: ((code_hi as u32) << 16) | (code_lo as u32),
                 }),
 
-                // (28, &[code]) unknown
-                // (29, &[]) unknown
-                
-                // (31, &[code]) unknown
+                (28, &[code]) => Ok(Unknown { cmd: 28, args: vec![code] }),
+                (29, &[]) => Ok(Unknown { cmd: 29, args: vec![] }),
+
+                (31, &[code]) => Ok(Unknown { cmd: 31, args: vec![code] }),
 
                 (cmd, args) => {
                     Result::<Command, MhkError>::Ok(Unknown {
