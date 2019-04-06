@@ -155,6 +155,29 @@ pub enum Command {
         stack_name: u16,
         code: u32,
     },
+    PlayForegroundMovie {
+        code: u16,
+    },
+    PlayBackgroundMovie {
+        code: u16,
+    },
+    ActivatePlst {
+        record: u16,
+    },
+    ActivateSlst {
+        record: u16,
+    },
+    ActivateBlst {
+        record: u16,
+    },
+    ActivateFlst {
+        record: u16,
+    },
+    ZipMode,
+    ActivateMlst {
+        record: u16,
+        u0: u16,
+    },
 
     Unknown {
         cmd: u16,
@@ -247,27 +270,28 @@ where
                 (9, &[hotspot_id]) => Ok(EnableHotspot { hotspot_id }),
                 (10, &[hotspot_id]) => Ok(DisableHotspot { hotspot_id }),
 
-                (12, &[u0]) => Ok(Unknown { cmd: 12, args: vec![u0] }),
+                (12, &[u0]) => {
+                    Ok(Unknown {
+                        cmd,
+                        args: vec![u0],
+                    })
+                },
                 (13, &[cursor]) => Ok(SetCursor { cursor }),
                 (14, &[ms, u0]) => Ok(Pause { ms, u0 }),
-                
+
                 (17, args) => {
                     if args.len() < 2 || args.len() < 2 + args[1] as usize {
-                        return Err(MhkError::InvalidFormat(
-                            "bad call",
-                        ));
+                        return Err(MhkError::InvalidFormat("bad call"));
                     }
                     Ok(Call {
                         cmd: args[0],
-                        args: args[2..2+args[1] as usize].to_owned(),
+                        args: args[2..2 + args[1] as usize].to_owned(),
                     })
-                }
+                },
 
                 (18, args) => {
                     if args.len() != 1 && args.len() != 5 {
-                        return Err(MhkError::InvalidFormat(
-                            "bad transition"
-                        ));
+                        return Err(MhkError::InvalidFormat("bad transition"));
                     }
                     let mut rect = None;
                     if args.len() == 5 {
@@ -298,21 +322,66 @@ where
 
                 (24, &[var, value]) => Ok(IncrementVariable { var, value }),
 
-                (27, &[stack_name, code_hi, code_lo]) => Ok(GotoStack {
-                    stack_name,
-                    code: ((code_hi as u32) << 16) | (code_lo as u32),
-                }),
-
-                (28, &[code]) => Ok(Unknown { cmd: 28, args: vec![code] }),
-                (29, &[]) => Ok(Unknown { cmd: 29, args: vec![] }),
-
-                (31, &[code]) => Ok(Unknown { cmd: 31, args: vec![code] }),
-
-                (cmd, args) => {
-                    Result::<Command, MhkError>::Ok(Unknown {
-                        cmd,
-                        args: args.to_owned(),
+                (27, &[stack_name, code_hi, code_lo]) => {
+                    Ok(GotoStack {
+                        stack_name,
+                        code: ((code_hi as u32) << 16) | (code_lo as u32),
                     })
+                },
+
+                (28, &[code]) => {
+                    Ok(Unknown {
+                        cmd,
+                        args: vec![code],
+                    })
+                },
+                (29, &[]) => Ok(Unknown { cmd, args: vec![] }),
+
+                (31, &[code]) => {
+                    Ok(Unknown {
+                        cmd,
+                        args: vec![code],
+                    })
+                },
+                (32, &[code]) => Ok(PlayForegroundMovie { code }),
+                (33, &[code]) => Ok(PlayBackgroundMovie { code }),
+                (34, &[u0]) => {
+                    Ok(Unknown {
+                        cmd,
+                        args: vec![u0],
+                    })
+                },
+
+                (36, &[]) => Ok(Unknown { cmd, args: vec![] }),
+                (37, &[]) => Ok(Unknown { cmd, args: vec![] }),
+
+                (38, &[u1, u2, u3, u4, u5]) => {
+                    Ok(Unknown {
+                        cmd,
+                        args: vec![u1, u2, u3, u4, u5],
+                    })
+                },
+
+                (39, &[record]) => Ok(ActivatePlst { record }),
+                (40, &[record]) => Ok(ActivateSlst { record }),
+                (41, &[u0]) => {
+                    Ok(Unknown {
+                        cmd,
+                        args: vec![u0],
+                    })
+                },
+
+                (43, &[record]) => Ok(ActivateBlst { record }),
+                (44, &[record]) => Ok(ActivateFlst { record }),
+                (45, &[]) => Ok(ZipMode),
+                (46, &[record, u0]) => Ok(ActivateMlst { record, u0 }),
+
+                (_cmd, _args) => {
+                    Err(MhkError::InvalidFormat("unknown script command"))
+                    // Result::<Command, MhkError>::Ok(Unknown {
+                    //    cmd,
+                    //    args: args.to_owned(),
+                    //})
                 },
             }?);
         }
