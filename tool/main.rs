@@ -39,8 +39,8 @@ async fn go() -> Result<(), MhkError> {
     let outmap = DirectMap::new(outfs);
 
     let fmt = MhkFormat;
-    // let outfmt = JsonFormat;
-    let outfmt = MhkFormat;
+    let outfmt = JsonFormat;
+    // let outfmt = MhkFormat;
 
     let rs = Resources::new_with_map_error(map, fmt);
     let mut outrs = Resources::new_with_format_error(outmap, outfmt);
@@ -48,6 +48,7 @@ async fn go() -> Result<(), MhkError> {
     for_each_riven!(|r| => {
         let x = await!(rs.write_to(&mut outrs, r));
         println!("{:?}: {:?}", r, x);
+        x.unwrap();
     });
 
     // let x = await!(rs.write_to(&mut outrs, riven::Resource::CARD));
