@@ -65,6 +65,26 @@ pub struct InlineSlst {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TransitionDirection {
+    Left,
+    Right,
+    Top,
+    Bottom,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TransitionCode {
+    Direction {
+        direction: TransitionDirection,
+        new_move: bool,
+        old_move: bool,
+    },
+    Blend,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", tag = "command")]
 pub enum Command {
     DrawBmp {
@@ -107,6 +127,33 @@ pub enum Command {
     },
     DisableHotspot {
         hotspot_id: u16,
+    },
+    SetCursor {
+        cursor: u16,
+    },
+    Pause {
+        ms: u16,
+        u0: u16,
+    },
+    Call {
+        cmd: u16,
+        args: Vec<u16>,
+    },
+    Transition {
+        code: TransitionCode,
+        // rarely seen, left top right bottom
+        rect: Option<(u16, u16, u16, u16)>,
+    },
+    ReloadCard,
+    DisableScreenUpdate,
+    EnableScreenUpdate,
+    IncrementVariable {
+        var: u16,
+        value: u16,
+    },
+    GotoStack {
+        stack_name: u16,
+        code: u32,
     },
 
     Unknown {
@@ -199,6 +246,67 @@ where
 
                 (9, &[hotspot_id]) => Ok(EnableHotspot { hotspot_id }),
                 (10, &[hotspot_id]) => Ok(DisableHotspot { hotspot_id }),
+
+                // (12, &[u0]) unknown
+                (13, &[cursor]) => Ok(SetCursor { cursor }),
+                (14, &[ms, u0]) => Ok(Pause { ms, u0 }),
+                
+                (17, args) => {
+                    if args.len() < 2 || args.len() < 2 + args[1] as usize {
+                        return Err(MhkError::InvalidFormat(
+                            "bad call",
+                        ));
+                    }
+                    Ok(Call {
+                        cmd: args[0],
+                        args: args[2..2+args[1] as usize].to_owned(),
+                    })
+                }
+
+                (18, args) => {
+                    if args.len() != 1 && args.len() != 5 {
+                        return Err(MhkError::InvalidFormat(
+                            "bad transition"
+                        ));
+                    }
+                    let mut rect = None;
+                    if args.len() == 5 {
+                        rect = Some((args[1], args[2], args[3], args[4]));
+                    }
+                    let codenum = args[0];
+                    let code = if codenum >= 16 {
+                        TransitionCode::Blend
+                    } else {
+                        TransitionCode::Direction {
+                            direction: match codenum & 0x3 {
+                                0 => TransitionDirection::Left,
+                                1 => TransitionDirection::Right,
+                                2 => TransitionDirection::Top,
+                                3 => TransitionDirection::Bottom,
+                                _ => unreachable!(),
+                            },
+                            new_move: (codenum & 0x4) > 0,
+                            old_move: (codenum & 0x8) > 0,
+                        }
+                    };
+                    Ok(Transition { code, rect })
+                },
+
+                (19, &[]) => Ok(ReloadCard),
+                (20, &[]) => Ok(DisableScreenUpdate),
+                (21, &[]) => Ok(EnableScreenUpdate),
+
+                (24, &[var, value]) => Ok(IncrementVariable { var, value }),
+
+                (27, &[stack_name, code_hi, code_lo]) => Ok(GotoStack {
+                    stack_name,
+                    code: ((code_hi as u32) << 16) | (code_lo as u32),
+                }),
+
+                // (28, &[code]) unknown
+                // (29, &[]) unknown
+                
+                // (31, &[code]) unknown
 
                 (cmd, args) => {
                     Result::<Command, MhkError>::Ok(Unknown {
