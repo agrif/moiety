@@ -85,7 +85,7 @@ pub enum TransitionCode {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case", tag = "command")]
+#[serde(rename_all = "kebab-case")]
 pub enum Command {
     DrawBmp {
         tbmp_id: u16,

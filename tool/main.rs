@@ -39,7 +39,8 @@ async fn go() -> Result<(), MhkError> {
     let outmap = DirectMap::new(outfs);
 
     let fmt = MhkFormat;
-    let outfmt = JsonFormat;
+    //let outfmt = JsonFormat;
+    let outfmt = YamlFormat;
     // let outfmt = MhkFormat;
 
     let rs = Resources::new_with_map_error(map, fmt);

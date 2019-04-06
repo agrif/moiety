@@ -32,6 +32,8 @@ mod direct;
 pub use direct::*;
 mod json;
 pub use json::*;
+mod yaml;
+pub use yaml::*;
 pub mod mhk;
 pub use mhk::{
     MhkError,
