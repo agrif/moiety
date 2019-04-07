@@ -19,6 +19,7 @@ impl std::convert::From<serde_json::Error> for JsonError {
     fn from(err: serde_json::Error) -> Self { JsonError::Json(err) }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct JsonFormat;
 
 impl<F> crate::Format<F> for JsonFormat

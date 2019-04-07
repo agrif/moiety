@@ -19,6 +19,7 @@ impl std::convert::From<serde_yaml::Error> for YamlError {
     fn from(err: serde_yaml::Error) -> Self { YamlError::Yaml(err) }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct YamlFormat;
 
 impl<F> crate::Format<F> for YamlFormat

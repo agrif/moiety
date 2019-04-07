@@ -8,7 +8,7 @@ use crate::{
     ResourceType,
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct MhkFormat;
 
 impl<R> Format<R> for MhkFormat

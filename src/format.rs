@@ -15,7 +15,7 @@ pub trait FormatFor<I, R: ResourceType>: Format<I> {
     fn extension<'a>(&'a self) -> Option<&'a str> { None }
 }
 
-#[derive(Fail, Debug)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Fail)]
 pub enum ConvertError<R: failure::Fail, W: failure::Fail> {
     #[fail(display = "Error reading: {}", _0)]
     Read(#[cause] R),

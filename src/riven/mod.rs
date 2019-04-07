@@ -1,3 +1,5 @@
+use crate::future::*;
+
 mod script;
 pub use script::*;
 
@@ -10,11 +12,11 @@ pub use name::*;
 mod plst;
 pub use plst::*;
 
-resources!(Resource, for_each_riven, {
-    (Blst, Vec<ButtonMeta>, BLST, "BLST"),
-    (Card, Card, CARD, "CARD"),
-    (Name, Vec<Name>, NAME, "NAME"),
-    (Plst, Vec<PictureMeta>, PLST, "PLST"),
+resources!(Resource, Format, FormatError, for_each_riven, {
+    (Blst, Vec<ButtonMeta>, BLST, TBlst, blst, BlstError, "BLST"),
+    (Card, Card, CARD, TCard, card, CardError, "CARD"),
+    (Name, Vec<Name>, NAME, TName, name, NameError, "NAME"),
+    (Plst, Vec<PictureMeta>, PLST, TPlst, plst, PlstError, "PLST"),
 });
 
 stack!(Stack, {
