@@ -16,11 +16,8 @@ async fn go() -> Result<(), MhkError> {
         fs,
         [
             (riven::Stack::A, vec!["a_Data.MHK", "a_Sounds.MHK"]),
-            (riven::Stack::B, vec![
-                "b_Data.MHK",
-                "b2_data.MHK",
-                "b_Sounds.MHK",
-            ]),
+            (riven::Stack::B, vec!["b_Data.MHK", "b_Sounds.MHK"]),
+            (riven::Stack::B2, vec!["b2_data.MHK"]),
             (riven::Stack::G, vec!["g_Data.MHK", "g_Sounds.MHK"]),
             (riven::Stack::J, vec![
                 "j_Data1.MHK",
@@ -42,18 +39,30 @@ async fn go() -> Result<(), MhkError> {
     let outfmt = riven::Format {
         blst: YamlFormat,
         card: YamlFormat,
-        name: JsonFormat,
+        name: YamlFormat,
         plst: YamlFormat,
+        tbmp: PngFormat,
     };
 
     let rs = Resources::new(map, fmt);
     let mut outrs = Resources::new(outmap, outfmt);
 
-    for_each_riven!(|r| => {
-        let x = await!(rs.write_to(&mut outrs, r));
-        println!("{:?}: {:?}", r, x);
-        x.unwrap();
-    });
+    // for_each_riven!(|r| => {
+    //    let x = await!(rs.write_to(&mut outrs, r));
+    //    println!("{:?}: {:?}", r, x);
+    //    x.unwrap();
+    //});
+
+    let x = await!(rs.write_resource_to(
+        &mut outrs,
+        riven::Stack::B2,
+        riven::Resource::TBMP,
+        50044
+    ));
+    x.unwrap();
+
+    // let x = await!(rs.write_stack_to(&mut outrs, riven::Stack::B2, riven::Resource::TBMP));
+    // x.unwrap();
 
     // let x = await!(rs.write_to(&mut outrs, riven::Resource::CARD));
     // println!("{:?}", x);

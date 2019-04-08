@@ -34,6 +34,8 @@ mod json;
 pub use json::*;
 mod yaml;
 pub use yaml::*;
+mod png;
+pub use self::png::*;
 pub mod mhk;
 pub use mhk::{
     MhkError,
