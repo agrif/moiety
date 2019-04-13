@@ -41,7 +41,7 @@ where
     {
         fut!({
             let mut contents = Vec::with_capacity(128);
-            await!(input.read_until_end(&mut contents))?;
+            await!(input.read_until_end_at(0, &mut contents))?;
             Ok(serde_yaml::from_slice(&contents)?)
         })
     }

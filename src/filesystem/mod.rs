@@ -74,13 +74,13 @@ pub trait AsyncRead: Sized {
         })
     }
 
-    fn read_until_end<'a>(
+    fn read_until_end_at<'a>(
         &'a self,
+        mut pos: u64,
         buf: &'a mut Vec<u8>,
     ) -> Fut<'a, Result<usize>> {
         fut!({
             let start_len = buf.len();
-            let mut pos = 0;
             let mut g = Guard {
                 len: buf.len(),
                 buf,

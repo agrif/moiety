@@ -51,21 +51,21 @@ async fn go() -> Result<(), MhkError> {
     //    let x = await!(rs.write_to(&mut outrs, r));
     //    println!("{:?}: {:?}", r, x);
     //    x.unwrap();
-    //});
+    // });
 
-    let x = await!(rs.write_resource_to(
-        &mut outrs,
-        riven::Stack::B2,
-        riven::Resource::TBMP,
-        50044
-    ));
-    x.unwrap();
+    // let x = await!(rs.write_resource_to(
+    //    &mut outrs,
+    //    riven::Stack::B,
+    //    riven::Resource::TBMP,
+    //    44
+    //));
+    // x.unwrap();
 
     // let x = await!(rs.write_stack_to(&mut outrs, riven::Stack::B2, riven::Resource::TBMP));
     // x.unwrap();
 
-    // let x = await!(rs.write_to(&mut outrs, riven::Resource::CARD));
-    // println!("{:?}", x);
+    let x = await!(rs.write_to(&mut outrs, riven::Resource::TBMP));
+    println!("{:?}", x);
 
     Ok(())
 }

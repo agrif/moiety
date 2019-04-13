@@ -2,6 +2,8 @@
 #![feature(async_await)]
 #![feature(await_macro)]
 #![feature(arbitrary_self_types)]
+#![feature(slice_patterns)]
+#![feature(copy_within)]
 
 #[macro_use]
 extern crate failure;
