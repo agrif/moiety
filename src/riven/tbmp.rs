@@ -99,11 +99,17 @@ fn copy_lookback_repeat(
     if data.len() < lookback || lookback == 0 {
         return None;
     }
+
     let start = data.len() - lookback;
     let end = start + len;
-    data.resize(data.len() + len, 1);
-    for i in start..end {
-        data[i + lookback] = data[i];
+    data.reserve(len);
+    unsafe {
+        // we will initialize this immediately after...
+        data.set_len(data.len() + len);
+
+        for i in start..end {
+            data[i + lookback] = data[i];
+        }
     }
 
     Some(())
