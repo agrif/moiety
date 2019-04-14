@@ -11,6 +11,7 @@ use crate::{
     PngError,
     PngFormat,
 };
+use png::HasParameters;
 
 #[derive(Debug, Clone)]
 pub struct Bitmap {
@@ -599,17 +600,22 @@ where
             let mut buf = Vec::with_capacity(1 << 16);
             await!(input.read_until_end_at(0, &mut buf))
                 .map_err(PngError::Io)?;
-            let im = lodepng::decode24(buf).map_err(PngError::Png)?;
+            let mut dec = png::Decoder::new(std::io::Cursor::new(buf));
+            dec.set(
+                png::Transformations::EXPAND
+                    | png::Transformations::STRIP_ALPHA,
+            );
+            let (info, mut reader) =
+                dec.read_info().map_err(PngError::Decode)?;
+            let mut data =
+                Vec::with_capacity((info.width * info.height * 3) as usize);
+            reader.next_frame(&mut data).map_err(PngError::Decode)?;
 
             Ok(Bitmap {
-                width: im.width as u16,
-                height: im.height as u16,
+                width: info.width as u16,
+                height: info.height as u16,
                 palette: None,
-                data: im
-                    .buffer
-                    .iter()
-                    .map(|p| palette::Srgb::new(p.r, p.g, p.b))
-                    .collect(),
+                data: palette::Pixel::from_raw_slice(&data).to_owned(),
             })
         })
     }
@@ -638,14 +644,47 @@ where
     {
         fut!({
             let bmp = await!(fmt.convert(input)).map_err(ConvertError::Read)?;
-            // FIXME use palette, if possible
-            let buf = lodepng::encode24(
-                &bmp.data,
-                bmp.width as usize,
-                bmp.height as usize,
-            )
-            .map_err(|e| ConvertError::Write(PngError::Png(e)))?;
-            Ok(buf)
+            let mut buf = std::io::Cursor::new(Vec::with_capacity(
+                (bmp.width * bmp.height * 3) as usize,
+            ));
+            {
+                let mut enc = png::Encoder::new(
+                    &mut buf,
+                    bmp.width as u32,
+                    bmp.height as u32,
+                );
+                enc.set(png::BitDepth::Eight);
+                if let Some(pal) = bmp.palette {
+                    enc.set(png::ColorType::Indexed);
+                    let mut writer = enc.write_header().map_err(|e| {
+                        ConvertError::Write(PngError::Encode(e))
+                    })?;
+                    writer
+                        .write_chunk(
+                            png::chunk::PLTE,
+                            palette::Pixel::into_raw_slice(&pal.palette),
+                        )
+                        .map_err(|e| {
+                            ConvertError::Write(PngError::Encode(e))
+                        })?;
+                    writer.write_image_data(&pal.image[..]).map_err(|e| {
+                        ConvertError::Write(PngError::Encode(e))
+                    })?;
+                } else {
+                    enc.set(png::ColorType::RGB);
+                    let mut writer = enc.write_header().map_err(|e| {
+                        ConvertError::Write(PngError::Encode(e))
+                    })?;
+                    writer
+                        .write_image_data(palette::Pixel::into_raw_slice(
+                            &bmp.data,
+                        ))
+                        .map_err(|e| {
+                            ConvertError::Write(PngError::Encode(e))
+                        })?;
+                }
+            }
+            Ok(buf.into_inner())
         })
     }
 }

@@ -18,7 +18,7 @@ serde_yaml = "0.8"
 memchr = "2.0"
 refl = "0.2"
 palette = "0.4"
-lodepng = "2.0"
+png = "0.14"
 
 [lib]
 path = "src/lib.rs"
