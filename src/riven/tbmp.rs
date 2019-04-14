@@ -197,15 +197,19 @@ where
                         [mut m @ 0x11...0x1f, ..] => {
                             // output first pixel of last duplet, then pixel at -m
                             // (-m is given in pixels)
+                            // careful: -m is relative to the second
+                            // output pixel!
                             m &= 0x0f;
                             c += 1;
+                            out.reserve(2);
                             let &a = out
                                 .get(out.len() - 2)
                                 .ok_or_else(invalid_err)?;
+                            out.push(a);
                             let &b = out
                                 .get(out.len() - m as usize)
                                 .ok_or_else(invalid_err)?;
-                            out.extend_from_slice(&[a, b]);
+                            out.push(b);
                         },
                         [mut x @ 0x20...0x2f, ..] => {
                             // repeat last duplet, but add x to second
@@ -265,12 +269,16 @@ where
                         // 0x58 is intentionally missing
                         [mut m @ 0x59...0x5f, p, ..] => {
                             // output p, then pixel at -m
+                            // careful: -m is relative to the second
+                            // output pixel!
                             m &= 0x07;
                             c += 2;
+                            out.reserve(2);
+                            out.push(p);
                             let &b = out
                                 .get(out.len() - m as usize)
                                 .ok_or_else(invalid_err)?;
-                            out.extend_from_slice(&[p, b]);
+                            out.push(b);
                         },
                         [mut x @ 0x60...0x6f, p, ..] => {
                             // output p, then (second pixel last duplet) + x
@@ -413,9 +421,9 @@ where
                             // what remains are ugly repeat commands
                             if cmd & 0xa0 != 0xa0 || cmd & 0x0c == 0 {
                                 // this is note one of them
-                                // return Err(MhkError::InvalidFormat("unknown tBMP riven subcommand")),
-                                println!("found subcommand: {:x?}", cmds[c]);
-                                break 'decode;
+                                return Err(MhkError::InvalidFormat(
+                                    "unknown tBMP riven subcommand",
+                                ));
                             }
 
                             // decode x
