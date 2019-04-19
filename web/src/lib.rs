@@ -160,6 +160,20 @@ impl moiety::filesystem::AsyncRead for WebHandle {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct WebFormat;
 
+// to get pixel data out of a url, we need to draw it to a canvas
+// (yes, really)
+// so make a canvas here we can re-use
+thread_local! {
+    static WEB_FORMAT_CANVAS: web_sys::HtmlCanvasElement = {
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        let canvas: web_sys::HtmlCanvasElement = document.create_element("canvas").unwrap().dyn_into().unwrap();
+        canvas.set_width(1024);
+        canvas.set_height(1024);
+        canvas
+    };
+}
+
 impl moiety::Format<WebHandle> for WebFormat {
     type Error = std::io::Error;
 }
@@ -184,22 +198,21 @@ impl
                 window.create_image_bitmap_with_blob(&blob)
             )?))?;
 
-            // yes, really. I hate JS.
-            let canvas = unerror(web_sys::OffscreenCanvas::new(
-                im.width(),
-                im.height(),
-            ))?;
-            // unchecked into because web_sys doesn't have the offscreen context
-            let ctx: web_sys::CanvasRenderingContext2d =
-                unerror(canvas.get_context("2d"))?.unwrap().unchecked_into();
-            unerror(ctx.draw_image_with_image_bitmap(&im, 0.0, 0.0))?;
-            let imdata = unerror(ctx.get_image_data(
-                0.0,
-                0.0,
-                im.width() as f64,
-                im.height() as f64,
-            ))?
-            .data();
+            let imdata = WEB_FORMAT_CANVAS.with(|canvas| -> IoResult<_> {
+                let ctx: web_sys::CanvasRenderingContext2d =
+                    unerror(canvas.get_context("2d"))?
+                        .unwrap()
+                        .dyn_into()
+                        .unwrap();
+                unerror(ctx.draw_image_with_image_bitmap(&im, 0.0, 0.0))?;
+                Ok(unerror(ctx.get_image_data(
+                    0.0,
+                    0.0,
+                    im.width() as f64,
+                    im.height() as f64,
+                ))?
+                .data())
+            })?;
 
             let nicer: &[palette::Srgba<u8>] =
                 palette::Pixel::from_raw_slice(&imdata);
