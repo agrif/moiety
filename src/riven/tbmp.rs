@@ -15,16 +15,16 @@ use png::HasParameters;
 
 #[derive(Debug, Clone)]
 pub struct Bitmap {
-    width: u16,
-    height: u16,
-    palette: Option<PaletteBitmap>,
-    data: Vec<palette::Srgb<u8>>,
+    pub width: u16,
+    pub height: u16,
+    pub palette: Option<PaletteBitmap>,
+    pub data: Vec<palette::Srgb<u8>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaletteBitmap {
-    palette: Vec<palette::Srgb<u8>>,
-    image: Vec<u8>,
+    pub palette: Vec<palette::Srgb<u8>>,
+    pub image: Vec<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
