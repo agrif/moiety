@@ -1,12 +1,13 @@
 const path = require('path');
 const webpack = require('webpack');
-const HtmlWebpackPlugin = require('html-webpack-plugin');
+//const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
     mode: 'development',
-    entry: './',
+    entry: './src/index.js',
     output: {
-        path: path.resolve(__dirname, 'out'),
+        path: path.resolve(__dirname, 'dist'),
+        publicPath: 'dist/',
         filename: 'bundle.js'
     },
     resolve: {
@@ -21,6 +22,6 @@ module.exports = {
     },
     plugins: [
         //new webpack.optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
-        new HtmlWebpackPlugin({ title: "Moiety" })
+        //new HtmlWebpackPlugin({ title: "Moiety" })
     ]
 }

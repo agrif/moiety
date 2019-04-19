@@ -1,6 +1,7 @@
 {
     "scripts": {
-        "server": "webpack-dev-server"
+        "dev": "webpack-dev-server --open",
+        "build": "webpack --progress --hide-modules"
     },
     "devDependencies": {
         "css-loader": "^1.0.1",

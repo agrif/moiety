@@ -4,4 +4,4 @@
 /node_modules
 Cargo.lock
 /pkg
-/out
+/dist

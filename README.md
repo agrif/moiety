@@ -6,6 +6,6 @@ In `web/`, run:
 
     npm install # if you haven't yet
     wasm-pack build
-    npm run server
+    npm run dev
     # ... or ...
-    npx webpack
+    npm run build
