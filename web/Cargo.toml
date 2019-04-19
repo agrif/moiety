@@ -1,0 +1,18 @@
+[package]
+name = "moiety-web"
+version = "0.1.0"
+authors = ["Aaron Griffith <aargri@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+moiety = {path = "../"}
+wasm-bindgen="0.2"
+js-sys = "0.3"
+
+[dependencies.web-sys]
+version = "0.3"
+features = ["Window", "Document", "Element", "Node", "HtmlElement"]
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
