@@ -23,9 +23,9 @@ impl<'a, T> Future for Fut<'a, T> {
 
     fn poll(
         mut self: Pin<&mut Self>,
-        lw: &std::task::Waker,
+        ctx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        (**self).as_mut().poll(lw)
+        (**self).as_mut().poll(ctx)
     }
 }
 

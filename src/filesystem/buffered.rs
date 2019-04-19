@@ -49,7 +49,7 @@ where
     async fn ensure_buffer<'a>(
         &'a self,
         pos: u64,
-    ) -> std::io::Result<futures::lock::MutexGuard<BufData>> {
+    ) -> std::io::Result<futures::lock::MutexGuard<'a, BufData>> {
         let mut bufdata = await!(self.buffer.lock());
         if pos < bufdata.start
             || pos >= bufdata.start + bufdata.buffer.len() as u64
