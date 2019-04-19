@@ -607,9 +607,12 @@ where
             );
             let (info, mut reader) =
                 dec.read_info().map_err(PngError::Decode)?;
-            let mut data =
-                Vec::with_capacity((info.width * info.height * 3) as usize);
-            reader.next_frame(&mut data).map_err(PngError::Decode)?;
+            let framesize = (info.width * info.height * 3) as usize;
+            let mut data = Vec::with_capacity(framesize);
+            unsafe {
+                data.set_len(framesize);
+                reader.next_frame(&mut data).map_err(PngError::Decode)?;
+            }
 
             Ok(Bitmap {
                 width: info.width as u16,
