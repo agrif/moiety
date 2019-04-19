@@ -88,6 +88,30 @@ pub struct WebHandle {
     pub path: String,
 }
 
+impl WebHandle {
+    pub async fn make_request(
+        &self,
+        start: u64,
+        end: Option<u64>,
+    ) -> IoResult<web_sys::Response> {
+        let window = web_sys::window().unwrap();
+        let request = web_sys::Request::new_with_str(&self.path).unwrap();
+        if let Some(endi) = end {
+            request
+                .headers()
+                .set("Range", &format!("bytes={}-{}", start, endi - 1))
+                .unwrap();
+        } else if start > 0 {
+            request
+                .headers()
+                .set("Range", &format!("bytes={}-", start))
+                .unwrap();
+        }
+
+        await!(unpromise(window.fetch_with_request(&request)))
+    }
+}
+
 impl moiety::filesystem::AsyncRead for WebHandle {
     fn read_at<'a>(
         &'a self,
@@ -95,18 +119,8 @@ impl moiety::filesystem::AsyncRead for WebHandle {
         buf: &'a mut [u8],
     ) -> Fut<'a, IoResult<usize>> {
         fut!({
-            let window = web_sys::window().unwrap();
-            let request = web_sys::Request::new_with_str(&self.path).unwrap();
-            request
-                .headers()
-                .set(
-                    "Range",
-                    &format!("bytes={}-{}", pos, pos as usize + buf.len() - 1),
-                )
-                .unwrap();
-
-            let response: web_sys::Response =
-                await!(unpromise(window.fetch_with_request(&request)))?;
+            let response =
+                await!(self.make_request(pos, Some(pos + buf.len() as u64)))?;
             if response.status() == 416 {
                 // we requested something of 0 bytes...
                 return Ok(0);
@@ -120,6 +134,85 @@ impl moiety::filesystem::AsyncRead for WebHandle {
             Ok(read)
         })
     }
+
+    fn read_until_end_at<'a>(
+        &'a self,
+        pos: u64,
+        buf: &'a mut Vec<u8>,
+    ) -> Fut<'a, IoResult<usize>> {
+        fut!({
+            let response = await!(self.make_request(pos, None))?;
+            let arrbuf: js_sys::ArrayBuffer =
+                await!(unpromise(unerror(response.array_buffer())?))?;
+            let arr = js_sys::Uint8Array::new(&arrbuf);
+            let read = arr.length() as usize;
+            buf.reserve(read);
+            let start = buf.len();
+            unsafe {
+                buf.set_len(start + read);
+                arr.copy_to(&mut buf[start..]);
+            }
+            Ok(read)
+        })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct WebFormat;
+
+impl moiety::Format<WebHandle> for WebFormat {
+    type Error = std::io::Error;
+}
+
+impl
+    moiety::FormatFor<WebHandle, moiety::riven::Resource<moiety::riven::Bitmap>>
+    for WebFormat
+{
+    fn convert<'a>(
+        &'a self,
+        input: WebHandle,
+    ) -> Fut<'a, IoResult<moiety::riven::Bitmap>>
+    where
+        WebHandle: 'a,
+    {
+        fut!({
+            let window = web_sys::window().unwrap();
+            let response = await!(input.make_request(0, None))?;
+            let blob: web_sys::Blob =
+                await!(unpromise(unerror(response.blob())?))?;
+            let im: web_sys::ImageBitmap = await!(unpromise(unerror(
+                window.create_image_bitmap_with_blob(&blob)
+            )?))?;
+
+            // yes, really. I hate JS.
+            let canvas = unerror(web_sys::OffscreenCanvas::new(
+                im.width(),
+                im.height(),
+            ))?;
+            // unchecked into because web_sys doesn't have the offscreen context
+            let ctx: web_sys::CanvasRenderingContext2d =
+                unerror(canvas.get_context("2d"))?.unwrap().unchecked_into();
+            unerror(ctx.draw_image_with_image_bitmap(&im, 0.0, 0.0))?;
+            let imdata = unerror(ctx.get_image_data(
+                0.0,
+                0.0,
+                im.width() as f64,
+                im.height() as f64,
+            ))?
+            .data();
+
+            let nicer: &[palette::Srgba<u8>] =
+                palette::Pixel::from_raw_slice(&imdata);
+            Ok(moiety::riven::Bitmap {
+                width: im.width() as u16,
+                height: im.height() as u16,
+                palette: None,
+                data: nicer.iter().map(|p| p.color).collect(),
+            })
+        })
+    }
+
+    fn extension<'a>(&'a self) -> Option<&'a str> { Some(&".png") }
 }
 
 #[wasm_bindgen]
@@ -137,24 +230,31 @@ pub async fn go_async() -> Result<JsValue, JsValue> {
 
     let app: web_sys::HtmlCanvasElement =
         document.create_element("canvas")?.dyn_into().unwrap();
+    body.append_child(&app)?;
+    let div: web_sys::HtmlElement =
+        document.create_element("pre")?.dyn_into().unwrap();
+    body.append_child(&div)?;
+
     app.set_width(608);
     app.set_height(392);
-    app.style().set_property("border", "1px solid black");
-    body.append_child(&app)?;
+    app.style().set_property("border", "1px solid black")?;
 
     let ctx: web_sys::CanvasRenderingContext2d =
         app.get_context("2d")?.unwrap().dyn_into().unwrap();
 
-    let fs = WebFilesystem::new("local/mhk");
-    let map = moiety::MhkMap::new(fs, moiety::riven::map_5cd());
-    let fmt = moiety::MhkFormat;
-    // let fmt = moiety::riven::Format {
-    //     blst: moiety::JsonFormat,
-    //     card: moiety::JsonFormat,
-    //     name: moiety::JsonFormat,
-    //     plst: moiety::JsonFormat,
-    //     tbmp: moiety::PngFormat,
-    // };
+    // let fs = WebFilesystem::new("local/mhk");
+    // let map = moiety::MhkMap::new(fs, moiety::riven::map_5cd());
+    // let fmt = moiety::MhkFormat;
+
+    let fs = WebFilesystem::new("local");
+    let map = moiety::DirectMap::new(fs);
+    let fmt = moiety::riven::Format {
+        blst: moiety::JsonFormat,
+        card: moiety::JsonFormat,
+        name: moiety::JsonFormat,
+        plst: moiety::JsonFormat,
+        tbmp: WebFormat,
+    };
 
     let rs = moiety::Resources::new(map, fmt);
 
@@ -165,7 +265,7 @@ pub async fn go_async() -> Result<JsValue, JsValue> {
     ))
     .unwrap();
 
-    let withalpha: Vec<palette::Alpha<palette::Srgb<u8>, u8>> = r
+    let withalpha: Vec<palette::Srgba<u8>> = r
         .data
         .iter()
         .map(|p| {
@@ -185,10 +285,15 @@ pub async fn go_async() -> Result<JsValue, JsValue> {
         r.height as u32,
     )?;
 
-    log!("size: {} x {}", imdata.width(), imdata.height());
     ctx.put_image_data(&imdata, 0.0, 0.0)?;
 
-    // app.set_inner_html(&format!("{:#?}", r.width));
+    let card = await!(rs.open(
+        moiety::riven::Stack::J,
+        moiety::riven::Resource::CARD,
+        43,
+    ))
+    .unwrap();
+    div.set_inner_html(&format!("{:#?}", card));
 
     Ok(JsValue::NULL)
 }

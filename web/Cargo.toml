@@ -18,7 +18,7 @@ palette = "0.4"
 
 [dependencies.web-sys]
 version = "0.3"
-features = ["console", "Window", "Document", "Element", "Node", "HtmlElement", "Headers", "Request", "RequestInit", "RequestMode", "Response", "CssStyleDeclaration", "HtmlCanvasElement", "CanvasRenderingContext2d", "ImageBitmap", "ImageData"]
+features = ["console", "Window", "Document", "Element", "Node", "HtmlElement", "Headers", "Request", "RequestInit", "RequestMode", "Response", "CssStyleDeclaration", "HtmlCanvasElement", "CanvasRenderingContext2d", "ImageBitmap", "ImageData", "Blob", "OffscreenCanvas"]
 
 [lib]
 crate-type = ["cdylib"]
