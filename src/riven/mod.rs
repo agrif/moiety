@@ -25,7 +25,6 @@ resources!(Resource, Format, FormatError, for_each_riven, {
 stack!(Stack, {
     A("aspit", "a"),
     B("bspit", "b"),
-    B2("b2spit", "b2"),
     G("gspit", "g"),
     J("jspit", "j"),
     O("ospit", "o"),
@@ -33,3 +32,27 @@ stack!(Stack, {
     R("rspit", "r"),
     T("tspit", "t"),
 });
+
+pub fn map_5cd() -> std::collections::HashMap<Stack, Vec<&'static str>> {
+    [
+        (Stack::A, vec!["a_Data.MHK", "a_Sounds.MHK"]),
+        (Stack::B, vec![
+            "b_Data.MHK",
+            "b_Sounds.MHK",
+            "b2_data.MHK",
+        ]),
+        (Stack::G, vec!["g_Data.MHK", "g_Sounds.MHK"]),
+        (Stack::J, vec![
+            "j_Data1.MHK",
+            "j_Data2.MHK",
+            "j_Sounds.MHK",
+        ]),
+        (Stack::O, vec!["o_Data.MHK", "o_Sounds.MHK"]),
+        (Stack::P, vec!["p_Data.MHK", "p_Sounds.MHK"]),
+        (Stack::R, vec!["r_Data.MHK", "r_Sounds.MHK"]),
+        (Stack::T, vec!["t_Data.MHK", "t_Sounds.MHK"]),
+    ]
+        .iter()
+        .cloned()
+        .collect()
+}
