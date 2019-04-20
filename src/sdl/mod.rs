@@ -1,3 +1,8 @@
+use crate::game::{
+    Event,
+    Game,
+};
+
 #[derive(Fail, Debug)]
 pub enum SdlError {
     #[fail(display = "{}", _0)]
@@ -45,20 +50,73 @@ impl std::convert::From<String> for SdlError {
     fn from(other: String) -> Self { SdlError::Other(other) }
 }
 
-pub struct Display {
+pub struct SdlRunner {
     ctx: sdl2::Sdl,
-    video: sdl2::VideoSubsystem,
+    display: Display,
+}
+
+pub fn convert_sdl_event(ev: sdl2::event::Event) -> Option<Event> {
+    match ev {
+        sdl2::event::Event::Quit { .. } => Some(Event::Quit),
+        sdl2::event::Event::MouseButtonDown {
+            mouse_btn: sdl2::mouse::MouseButton::Left,
+            x,
+            y,
+            ..
+        } => Some(Event::MouseDown(x, y)),
+        sdl2::event::Event::MouseButtonUp {
+            mouse_btn: sdl2::mouse::MouseButton::Left,
+            x,
+            y,
+            ..
+        } => Some(Event::MouseUp(x, y)),
+        _ => None,
+    }
+}
+
+impl SdlRunner {
+    pub fn new(title: &str, width: u32, height: u32) -> Result<Self, SdlError> {
+        let ctx = sdl2::init()?;
+        let display = Display::new(&ctx, title, width, height)?;
+        Ok(SdlRunner { ctx, display })
+    }
+
+    pub async fn run<G>(&mut self, mut game: G) -> Result<(), G::Error>
+    where
+        G: Game<Display>,
+    {
+        // FIXME proper error handling
+        'mainloop: loop {
+            for sdl_event in self.ctx.event_pump().unwrap().poll_iter() {
+                if let Some(event) = convert_sdl_event(sdl_event) {
+                    let running =
+                        await!(game.handle(&event, &mut self.display))?;
+                    if !running || event == Event::Quit {
+                        break 'mainloop;
+                    }
+                }
+            }
+
+            if !await!(game.handle(&Event::Idle, &mut self.display))? {
+                break 'mainloop;
+            }
+        }
+        Ok(())
+    }
+}
+
+pub struct Display {
     canvas: sdl2::render::WindowCanvas,
     texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
 }
 
 impl Display {
     pub fn new(
+        ctx: &sdl2::Sdl,
         title: &str,
         width: u32,
         height: u32,
-    ) -> Result<Display, SdlError> {
-        let ctx = sdl2::init()?;
+    ) -> Result<Self, SdlError> {
         let video = ctx.video()?;
         let window = video
             .window(title, width, height)
@@ -68,23 +126,9 @@ impl Display {
         let texture_creator = canvas.texture_creator();
 
         Ok(Display {
-            ctx,
-            video,
             canvas,
             texture_creator,
         })
-    }
-
-    pub fn events(&self) -> Result<bool, SdlError> {
-        let event = self.ctx.event_pump()?.wait_event();
-        match event {
-            sdl2::event::Event::Quit { .. } => Ok(false),
-            sdl2::event::Event::KeyDown {
-                keycode: Some(sdl2::keyboard::Keycode::Escape),
-                ..
-            } => Ok(false),
-            _ => Ok(true),
-        }
     }
 }
 

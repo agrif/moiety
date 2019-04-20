@@ -15,7 +15,7 @@ pub struct PaletteBitmap {
 pub trait Display {
     // display-side bitmap
     type Bitmap;
-    type Error;
+    type Error: failure::Fail;
 
     fn transfer(&self, src: &Bitmap) -> Result<Self::Bitmap, Self::Error>;
     fn draw(

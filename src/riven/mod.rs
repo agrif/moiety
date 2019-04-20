@@ -17,6 +17,9 @@ pub use plst::*;
 mod tbmp;
 pub use tbmp::*;
 
+mod game;
+pub use game::*;
+
 resources!(Resource, Format, FormatError, for_each_riven, {
     (Blst, Vec<ButtonMeta>, BLST, TBlst, blst, BlstError, "BLST"),
     (Card, Card, CARD, TCard, card, CardError, "CARD"),

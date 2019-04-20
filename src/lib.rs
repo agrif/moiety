@@ -46,6 +46,7 @@ pub use mhk::{
 };
 
 pub mod display;
+pub mod game;
 
 #[cfg(feature = "sdl2")]
 pub mod sdl;
