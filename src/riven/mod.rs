@@ -1,4 +1,7 @@
-use crate::future::*;
+use crate::{
+    display::Bitmap,
+    future::*,
+};
 
 mod script;
 pub use script::*;

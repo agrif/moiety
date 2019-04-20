@@ -12,10 +12,7 @@ async fn go() -> Result<(), MhkError> {
         filesystem::LocalFilesystem::new("./web/local/"),
     );
 
-    let map = MhkMap::new(
-        fs,
-        riven::map_5cd(),
-    );
+    let map = MhkMap::new(fs, riven::map_5cd());
     let outmap = DirectMap::new(outfs);
 
     let fmt = MhkFormat;

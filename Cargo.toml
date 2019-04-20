@@ -7,6 +7,10 @@ authors = ["Aaron Griffith <aargri@gmail.com>"]
 edition = "2018"
 default-run = "vahttool"
 
+[features]
+default = ["sdl2"]
+use_sdl2_mac_framework = ["sdl2/use_mac_framework"]
+
 [dependencies]
 futures-preview = "0.3.0-alpha.14"
 failure = "0.1"
@@ -19,6 +23,7 @@ memchr = "2.0"
 refl = "0.2"
 palette = "0.4"
 png = "0.14"
+sdl2 = {version = "0.32", optional = true, features = ["unsafe_textures"]}
 
 [lib]
 path = "src/lib.rs"
@@ -26,3 +31,8 @@ path = "src/lib.rs"
 [[bin]]
 name = "vahttool"
 path = "tool/main.rs"
+
+[[bin]]
+features = ["sdl"]
+name = "moiety"
+path = "tool/moiety.rs"

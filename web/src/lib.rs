@@ -179,13 +179,15 @@ impl moiety::Format<WebHandle> for WebFormat {
 }
 
 impl
-    moiety::FormatFor<WebHandle, moiety::riven::Resource<moiety::riven::Bitmap>>
-    for WebFormat
+    moiety::FormatFor<
+        WebHandle,
+        moiety::riven::Resource<moiety::display::Bitmap>,
+    > for WebFormat
 {
     fn convert<'a>(
         &'a self,
         input: WebHandle,
-    ) -> Fut<'a, IoResult<moiety::riven::Bitmap>>
+    ) -> Fut<'a, IoResult<moiety::display::Bitmap>>
     where
         WebHandle: 'a,
     {
@@ -216,7 +218,7 @@ impl
 
             let nicer: &[palette::Srgba<u8>] =
                 palette::Pixel::from_raw_slice(&imdata);
-            Ok(moiety::riven::Bitmap {
+            Ok(moiety::display::Bitmap {
                 width: im.width() as u16,
                 height: im.height() as u16,
                 palette: None,
