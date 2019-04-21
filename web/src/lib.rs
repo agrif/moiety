@@ -15,22 +15,17 @@ use wasm_bindgen::{
 };
 
 mod filesystem;
+#[macro_use]
 mod shims;
 use filesystem::*;
+use shims::*;
 mod format;
 use format::*;
-
-// pretend console.log is println!
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
-    }
-}
+mod display;
+use display::*;
 
 #[wasm_bindgen]
-pub fn go() -> js_sys::Promise {
-    wasm_bindgen_futures::future_to_promise(go_async().boxed().compat())
-}
+pub fn go() -> js_sys::Promise { repromise(go_async()) }
 
 pub async fn go_async() -> Result<JsValue, JsValue> {
     #[cfg(feature = "console_error_panic_hook")]
@@ -40,19 +35,13 @@ pub async fn go_async() -> Result<JsValue, JsValue> {
     let document = window.document().expect("no document on window");
     let body = document.body().expect("no body on document");
 
-    let app: web_sys::HtmlCanvasElement =
+    let canvas: web_sys::HtmlCanvasElement =
         document.create_element("canvas")?.dyn_into().unwrap();
-    body.append_child(&app)?;
-    let div: web_sys::HtmlElement =
-        document.create_element("pre")?.dyn_into().unwrap();
-    body.append_child(&div)?;
+    body.append_child(&canvas)?;
 
-    app.set_width(608);
-    app.set_height(392);
-    app.style().set_property("border", "1px solid black")?;
-
-    let ctx: web_sys::CanvasRenderingContext2d =
-        app.get_context("2d")?.unwrap().dyn_into().unwrap();
+    canvas.set_width(608);
+    canvas.set_height(392);
+    canvas.style().set_property("border", "1px solid black")?;
 
     // let fs = WebFilesystem::new("local/mhk");
     // let map = moiety::MhkMap::new(fs, moiety::riven::map_5cd());
@@ -70,42 +59,10 @@ pub async fn go_async() -> Result<JsValue, JsValue> {
 
     let rs = moiety::Resources::new(map, fmt);
 
-    let r = await!(rs.open(
-        moiety::riven::Stack::B,
-        moiety::riven::Resource::TBMP,
-        50042
-    ))
-    .unwrap();
-
-    let withalpha: Vec<palette::Srgba<u8>> = r
-        .data
-        .iter()
-        .map(|p| {
-            palette::Alpha {
-                color: *p,
-                alpha: 255,
-            }
-        })
-        .collect();
-    let mut rawbuf: Vec<u8> = palette::Pixel::into_raw_slice(&withalpha)
-        .iter()
-        .cloned()
-        .collect();
-    let imdata = web_sys::ImageData::new_with_u8_clamped_array_and_sh(
-        wasm_bindgen::Clamped(&mut rawbuf[..]),
-        r.width as u32,
-        r.height as u32,
-    )?;
-
-    ctx.put_image_data(&imdata, 0.0, 0.0)?;
-
-    let card = await!(rs.open(
-        moiety::riven::Stack::J,
-        moiety::riven::Resource::CARD,
-        43,
-    ))
-    .unwrap();
-    div.set_inner_html(&format!("{:#?}", card));
+    let game = moiety::riven::Riven::new(rs);
+    // FIXME error handling
+    let mut runner = WebRunner::new(canvas);
+    await!(runner.run(game)).unwrap();
 
     Ok(JsValue::NULL)
 }

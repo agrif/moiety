@@ -1,7 +1,6 @@
 use super::*;
 use crate::{
     display::Display,
-    future::*,
     game::{
         Event,
         Game,
@@ -69,8 +68,7 @@ where
                     self.current
                 ))
                 .map_err(RivenError::ResourceError)?;
-                let bmp = display
-                    .transfer(&raw_bmp)
+                let bmp = await!(display.transfer(&raw_bmp))
                     .map_err(RivenError::DisplayError)?;
                 display.draw(
                     &bmp,

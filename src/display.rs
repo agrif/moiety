@@ -1,3 +1,5 @@
+use crate::future::*;
+
 #[derive(Debug, Clone)]
 pub struct Bitmap {
     pub width: u16,
@@ -17,7 +19,10 @@ pub trait Display {
     type Bitmap;
     type Error: failure::Fail;
 
-    fn transfer(&self, src: &Bitmap) -> Result<Self::Bitmap, Self::Error>;
+    fn transfer<'a>(
+        &'a self,
+        src: &'a Bitmap,
+    ) -> Fut<'a, Result<Self::Bitmap, Self::Error>>;
     fn draw(
         &mut self,
         src: &Self::Bitmap,

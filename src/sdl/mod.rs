@@ -1,6 +1,9 @@
-use crate::game::{
-    Event,
-    Game,
+use crate::{
+    future::*,
+    game::{
+        Event,
+        Game,
+    },
 };
 
 #[derive(Fail, Debug)]
@@ -136,21 +139,23 @@ impl crate::display::Display for Display {
     type Bitmap = sdl2::render::Texture;
     type Error = SdlError;
 
-    fn transfer(
-        &self,
-        src: &crate::display::Bitmap,
-    ) -> Result<Self::Bitmap, Self::Error> {
-        let mut tex = self.texture_creator.create_texture_static(
-            sdl2::pixels::PixelFormatEnum::RGB24,
-            src.width as u32,
-            src.height as u32,
-        )?;
-        tex.update(
-            None,
-            palette::Pixel::into_raw_slice(&src.data),
-            src.width as usize * 3,
-        )?;
-        Ok(tex)
+    fn transfer<'a>(
+        &'a self,
+        src: &'a crate::display::Bitmap,
+    ) -> Fut<'a, Result<Self::Bitmap, Self::Error>> {
+        fut!({
+            let mut tex = self.texture_creator.create_texture_static(
+                sdl2::pixels::PixelFormatEnum::RGB24,
+                src.width as u32,
+                src.height as u32,
+            )?;
+            tex.update(
+                None,
+                palette::Pixel::into_raw_slice(&src.data),
+                src.width as usize * 3,
+            )?;
+            Ok(tex)
+        })
     }
 
     fn draw(
