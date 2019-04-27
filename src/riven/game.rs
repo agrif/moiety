@@ -3,6 +3,7 @@ use crate::{
     display::Display,
     game::{
         Event,
+        EventPump,
         Game,
     },
     Format,
@@ -36,51 +37,53 @@ impl<M, F> Riven<M, F> {
     }
 }
 
-impl<M, F, D> Game<D> for Riven<M, F>
+impl<'a, M, F, D> Game<'a, D> for Riven<M, F>
 where
-    D: Display,
-    M: ResourceMap<Stack = Stack>,
-    F: Format<M::Handle> + FormatFor<M::Handle, Resource<Bitmap>>,
+    D: Display + 'a,
+    M: ResourceMap<Stack = Stack> + 'a,
+    F: Format<M::Handle> + FormatFor<M::Handle, Resource<Bitmap>> + 'a,
 {
     type Error = RivenError<M::Error, F::Error, D::Error>;
 
-    fn handle<'a>(
-        &'a mut self,
-        event: &'a Event,
-        display: &'a mut D,
-    ) -> Fut<'a, Result<bool, Self::Error>> {
+    fn start(
+        mut self,
+        mut pump: EventPump,
+        mut display: D,
+    ) -> Fut<'a, Result<(), Self::Error>> {
         fut!({
-            match event {
-                Event::Quit => return Ok(false),
+            loop {
+                let event = await!(pump.pump());
+                match event {
+                    Event::Quit => return Ok(()),
 
-                Event::MouseDown(_x, _y) => {
-                    self.current += 1;
-                    self.needs_draw = true;
-                },
+                    Event::MouseDown(_x, _y) => {
+                        self.current += 1;
+                        self.needs_draw = true;
+                    },
 
-                _ => {},
+                    _ => {},
+                }
+
+                if self.needs_draw {
+                    let raw_bmp = await!(self.resources.open(
+                        Stack::J,
+                        Resource::TBMP,
+                        self.current
+                    ))
+                    .map_err(RivenError::ResourceError)?;
+                    let bmp = await!(display.transfer(&raw_bmp))
+                        .map_err(RivenError::DisplayError)?;
+                    display.draw(
+                        &bmp,
+                        0,
+                        0,
+                        raw_bmp.width as i32,
+                        raw_bmp.height as i32,
+                    );
+                    display.flip();
+                    self.needs_draw = false;
+                }
             }
-
-            if self.needs_draw {
-                let raw_bmp = await!(self.resources.open(
-                    Stack::J,
-                    Resource::TBMP,
-                    self.current
-                ))
-                .map_err(RivenError::ResourceError)?;
-                let bmp = await!(display.transfer(&raw_bmp))
-                    .map_err(RivenError::DisplayError)?;
-                display.draw(
-                    &bmp,
-                    0,
-                    0,
-                    raw_bmp.width as i32,
-                    raw_bmp.height as i32,
-                );
-                display.flip();
-                self.needs_draw = false;
-            }
-            Ok(true)
         })
     }
 }

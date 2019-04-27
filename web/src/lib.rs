@@ -5,10 +5,6 @@
 #[macro_use]
 extern crate moiety;
 
-use futures::{
-    FutureExt,
-    TryFutureExt,
-};
 use wasm_bindgen::{
     prelude::*,
     JsCast,
@@ -61,8 +57,7 @@ pub async fn go_async() -> Result<JsValue, JsValue> {
 
     let game = moiety::riven::Riven::new(rs);
     // FIXME error handling
-    let mut runner = WebRunner::new(canvas);
-    await!(runner.run(game)).unwrap();
+    await!(run_web(canvas, game));
 
     Ok(JsValue::NULL)
 }

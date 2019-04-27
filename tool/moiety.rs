@@ -2,10 +2,7 @@
 #![feature(await_macro)]
 #![feature(futures_api)]
 
-use moiety::{
-    display::Display,
-    *,
-};
+use moiety::*;
 
 async fn go() -> Result<(), riven::RivenError<MhkError, MhkError, sdl::SdlError>>
 {
@@ -16,8 +13,7 @@ async fn go() -> Result<(), riven::RivenError<MhkError, MhkError, sdl::SdlError>
 
     let game = riven::Riven::new(rs);
     // FIXME error handling
-    let mut runner = sdl::SdlRunner::new("Moiety", 608, 392).unwrap();
-    await!(runner.run(game))?;
+    await!(sdl::run_sdl("Moiety", 608, 392, game))?;
     Ok(())
 }
 

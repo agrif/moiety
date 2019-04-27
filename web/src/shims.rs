@@ -71,3 +71,10 @@ where
             .map_err(|e| JsValue::from_str(&format!("error: {:?}", e))),
     )
 }
+
+pub fn schedule_<F, R>(fut: F) -> Promise
+where
+    F: futures::Future<Output = R> + 'static,
+{
+    schedule(fut.map(|_| Result::<(), ()>::Ok(())))
+}

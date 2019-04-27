@@ -2,6 +2,7 @@ use crate::{
     future::*,
     game::{
         Event,
+        EventPump,
         Game,
     },
 };
@@ -53,11 +54,6 @@ impl std::convert::From<String> for SdlError {
     fn from(other: String) -> Self { SdlError::Other(other) }
 }
 
-pub struct SdlRunner {
-    ctx: sdl2::Sdl,
-    display: Display,
-}
-
 pub fn convert_sdl_event(ev: sdl2::event::Event) -> Option<Event> {
     match ev {
         sdl2::event::Event::Quit { .. } => Some(Event::Quit),
@@ -77,35 +73,47 @@ pub fn convert_sdl_event(ev: sdl2::event::Event) -> Option<Event> {
     }
 }
 
-impl SdlRunner {
-    pub fn new(title: &str, width: u32, height: u32) -> Result<Self, SdlError> {
-        let ctx = sdl2::init()?;
-        let display = Display::new(&ctx, title, width, height)?;
-        Ok(SdlRunner { ctx, display })
-    }
+pub async fn run_sdl<G>(
+    title: &str,
+    width: u32,
+    height: u32,
+    game: G,
+) -> Result<(), G::Error>
+where
+    G: Game<'static, Display>,
+{
+    let ctx = sdl2::init().unwrap();
+    let display = Display::new(&ctx, title, width, height).unwrap();
 
-    pub async fn run<G>(&mut self, mut game: G) -> Result<(), G::Error>
-    where
-        G: Game<Display>,
-    {
-        // FIXME proper error handling
-        'mainloop: loop {
-            for sdl_event in self.ctx.event_pump().unwrap().poll_iter() {
-                if let Some(event) = convert_sdl_event(sdl_event) {
-                    let running =
-                        await!(game.handle(&event, &mut self.display))?;
-                    if !running || event == Event::Quit {
-                        break 'mainloop;
-                    }
+    let pump = EventPump::new();
+    let mut sender = pump.sender();
+
+    let mut gamefut = game.start(pump, display);
+
+    // FIXME proper error handling
+    'mainloop: loop {
+        if let Some(sdl_event) = ctx.event_pump().unwrap().poll_event() {
+            if let Some(event) = convert_sdl_event(sdl_event) {
+                if event == Event::Quit {
+                    await!(sender.send(event));
+                    break 'mainloop;
+                } else {
+                    await!(sender.send(event));
                 }
+            } else {
+                await!(sender.send(Event::Idle));
             }
-
-            if !await!(game.handle(&Event::Idle, &mut self.display))? {
-                break 'mainloop;
-            }
+        } else {
+            await!(sender.send(Event::Idle));
         }
-        Ok(())
+        // give the game thread some time
+        match futures::poll!(&mut gamefut) {
+            std::task::Poll::Pending => (),
+            std::task::Poll::Ready(result) => return Ok(result?),
+        }
     }
+
+    Ok(await!(gamefut)?)
 }
 
 pub struct Display {

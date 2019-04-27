@@ -1,8 +1,4 @@
 use crate::shims::*;
-use futures::{
-    sink::SinkExt,
-    stream::StreamExt,
-};
 use moiety::{
     display::{
         Bitmap,
@@ -11,6 +7,7 @@ use moiety::{
     future::*,
     game::{
         Event,
+        EventPump,
         Game,
     },
 };
@@ -19,67 +16,44 @@ use wasm_bindgen::{
     JsCast,
 };
 
-pub struct WebRunner {
-    display: CanvasDisplay,
+macro_rules! event_handler {
+    ($pump:expr, $el:expr, {$($register:ident($evfn:expr),)*}) => {
+        $({
+            let mut send = $pump.sender();
+            let onevent =
+                Closure::wrap(Box::new(move |ev| {
+                    futures::executor::block_on(
+                        send.send($evfn(ev)),
+                    );
+                })
+                              as Box<dyn FnMut(_)>);
+            $el.$register(Some(onevent.as_ref().unchecked_ref()));
+            onevent.forget();
+        })*
+    };
 }
 
-impl WebRunner {
-    pub fn new(canvas: web_sys::HtmlCanvasElement) -> Self {
-        WebRunner {
-            display: CanvasDisplay::new(canvas),
-        }
-    }
+pub async fn run_web<G>(canvas: web_sys::HtmlCanvasElement, game: G)
+where
+    G: Game<'static, CanvasDisplay>,
+    G::Error: std::fmt::Debug,
+{
+    let display = CanvasDisplay::new(canvas);
 
-    pub async fn run<G>(&mut self, mut game: G) -> Result<(), G::Error>
-    where
-        G: Game<CanvasDisplay>,
-    {
-        let (mut send, mut recv) = futures::channel::mpsc::channel(128);
+    let pump = EventPump::new();
 
-        if !await!(game.handle(&Event::Idle, &mut self.display))? {
-            return Ok(());
-        }
+    event_handler!(pump, display.canvas, {
+        set_onmousedown(|ev: web_sys::MouseEvent| {
+            Event::MouseDown(ev.offset_x(), ev.offset_y())
+        }),
+        set_onmouseup(|ev: web_sys::MouseEvent| {
+            Event::MouseUp(ev.offset_x(), ev.offset_y())
+        }),
+    });
 
-        let mut mousedown_send = send.clone();
-        let onmousedown =
-            Closure::wrap(Box::new(move |ev: web_sys::MouseEvent| {
-                futures::executor::block_on(
-                    mousedown_send
-                        .send(Event::MouseDown(ev.offset_x(), ev.offset_y())),
-                )
-                .unwrap();
-            })
-                as Box<dyn FnMut(web_sys::MouseEvent)>);
-        self.display
-            .canvas
-            .set_onmousedown(Some(onmousedown.as_ref().unchecked_ref()));
-        onmousedown.forget();
-
-        let mut mouseup_send = send.clone();
-        let onmouseup =
-            Closure::wrap(Box::new(move |ev: web_sys::MouseEvent| {
-                futures::executor::block_on(
-                    mouseup_send
-                        .send(Event::MouseUp(ev.offset_x(), ev.offset_y())),
-                )
-                .unwrap();
-            })
-                as Box<dyn FnMut(web_sys::MouseEvent)>);
-        self.display
-            .canvas
-            .set_onmouseup(Some(onmouseup.as_ref().unchecked_ref()));
-        onmouseup.forget();
-
-        await!(send.send(Event::Idle)).unwrap();
-        while let Some(ev) = await!(recv.next()) {
-            let running = await!(game.handle(&ev, &mut self.display))?;
-            if !running || ev == Event::Quit {
-                break;
-            }
-        }
-
-        Ok(())
-    }
+    let mut send = pump.sender();
+    schedule(game.start(pump, display));
+    await!(send.send(Event::Idle));
 }
 
 pub struct CanvasDisplay {
