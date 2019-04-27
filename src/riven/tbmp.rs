@@ -638,7 +638,7 @@ where
         fut!({
             let bmp = await!(fmt.convert(input)).map_err(ConvertError::Read)?;
             let mut buf = std::io::Cursor::new(Vec::with_capacity(
-                (bmp.width * bmp.height * 3) as usize,
+                bmp.width as usize * bmp.height as usize * 3,
             ));
             {
                 let mut enc = png::Encoder::new(
