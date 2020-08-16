@@ -1,43 +1,47 @@
-use crate::{
-    display::Bitmap,
-    future::*,
-};
-
 mod script;
 pub use script::*;
 
 mod blst;
 pub use blst::*;
+
 mod card;
 pub use card::*;
+
 mod name;
 pub use name::*;
+
 mod plst;
 pub use plst::*;
+
 mod tbmp;
 pub use tbmp::*;
 
-mod game;
-pub use game::*;
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum Stack {
+    A, B, G, J, O, P, R, T, Extras
+}
 
-resources!(Resource, Format, FormatError, for_each_riven, {
-    (Blst, Vec<ButtonMeta>, BLST, TBlst, blst, BlstError, "BLST"),
-    (Card, Card, CARD, TCard, card, CardError, "CARD"),
-    (Name, Vec<Name>, NAME, TName, name, NameError, "NAME"),
-    (Plst, Vec<PictureMeta>, PLST, TPlst, plst, PlstError, "PLST"),
-    (TBmp, Bitmap, TBMP, TTBmp, tbmp, TBmpError, "tBMP"),
-});
+impl crate::Stack for Stack {
+    fn name(&self) -> &str {
+        use Stack::*;
+        match self {
+            A => "aspit",
+            B => "bspit",
+            G => "gspit",
+            J => "jspit",
+            O => "ospit",
+            P => "pspit",
+            R => "rspit",
+            T => "tspit",
+            Extras => "extras",
+        }
+    }
 
-stack!(Stack, {
-    A("aspit", "a"),
-    B("bspit", "b"),
-    G("gspit", "g"),
-    J("jspit", "j"),
-    O("ospit", "o"),
-    P("pspit", "p"),
-    R("rspit", "r"),
-    T("tspit", "t"),
-});
+    fn all() -> Vec<Self> {
+        use Stack::*;
+        vec![A, B, G, J, O, P, R, T] // FIXME extras, usually in arcriven.z
+    }
+}
 
 pub fn map_5cd() -> std::collections::HashMap<Stack, Vec<&'static str>> {
     [
@@ -49,8 +53,5 @@ pub fn map_5cd() -> std::collections::HashMap<Stack, Vec<&'static str>> {
         (Stack::P, vec!["p_Data.MHK", "p_Sounds.MHK"]),
         (Stack::R, vec!["r_Data.MHK", "r_Sounds.MHK"]),
         (Stack::T, vec!["t_Data.MHK", "t_Sounds.MHK"]),
-    ]
-    .iter()
-    .cloned()
-    .collect()
+    ].iter().cloned().collect()
 }

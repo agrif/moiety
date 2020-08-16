@@ -1,5 +1,5 @@
-use crate::future::*;
-use std::io::Result as IOResult;
+use super::{Filesystem, FilesystemWrite};
+use anyhow::Result;
 
 #[derive(Debug)]
 pub struct LoggingFilesystem<T> {
@@ -19,89 +19,28 @@ impl<T> LoggingFilesystem<T> {
     }
 }
 
-async fn bracket<F, Fn, E, R, U>(
-    message: String,
-    future: F,
-    map: Fn,
-) -> Result<U, E>
+#[async_trait::async_trait(?Send)]
+impl<T> Filesystem for LoggingFilesystem<T>
 where
-    F: Future<Output = Result<R, E>>,
-    Fn: FnOnce(R) -> U,
+    T: Filesystem,
 {
-    println!("[begin] {}", message);
-    let res = await!(future);
-    match res {
-        Ok(r) => {
-            println!("[ end ] {}", message);
-            Ok(map(r))
-        },
-        Err(e) => {
-            println!("[ !!! ] {}", message);
-            Err(e)
-        },
+    type Handle = T::Handle;
+
+    async fn open(&self, path: &[&str]) -> Result<Self::Handle> {
+        let nicepath = format!("[{}]/{}", self.name, path.join("/"));
+        println!("opening {}", nicepath);
+        self.inner.open(path).await
     }
 }
 
-impl<T> super::Filesystem for LoggingFilesystem<T>
+#[async_trait::async_trait(?Send)]
+impl<T> FilesystemWrite for LoggingFilesystem<T>
 where
-    T: super::Filesystem,
+    T: FilesystemWrite,
 {
-    type Handle = LoggingHandle<T::Handle>;
-
-    fn open<'a>(&'a self, path: &'a [&str]) -> Fut<'a, IOResult<Self::Handle>> {
-        fut!({
-            let nicepath = format!("[{}]/{}", self.name, path.join("/"));
-            let message = format!("opening {}", nicepath);
-            await!(bracket(message, self.inner.open(path), |h| {
-                LoggingHandle {
-                    inner: h,
-                    name: nicepath,
-                }
-            }))
-        })
-    }
-}
-
-impl<T> super::FilesystemWrite for LoggingFilesystem<T>
-where
-    T: super::FilesystemWrite,
-{
-    fn write<'a>(
-        &'a mut self,
-        path: &'a [&str],
-        data: &'a [u8],
-    ) -> Fut<'a, IOResult<()>> {
-        fut!({
-            let nicepath = format!("[{}]/{}", self.name, path.join("/"));
-            let message = format!("writing {}", nicepath);
-            await!(bracket(message, self.inner.write(path, data), |x| x))
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct LoggingHandle<T> {
-    inner: T,
-    name: String,
-}
-
-impl<T> super::AsyncRead for LoggingHandle<T>
-where
-    T: super::AsyncRead,
-{
-    fn read_at<'a>(
-        &'a self,
-        pos: u64,
-        buf: &'a mut [u8],
-    ) -> Fut<'a, IOResult<usize>> {
-        fut!({
-            let message = format!(
-                "reading {}-{} of {}",
-                pos,
-                pos + buf.len() as u64,
-                self.name
-            );
-            await!(bracket(message, self.inner.read_at(pos, buf), |x| x))
-        })
+    async fn write(&mut self, path: &[&str], data: &[u8]) -> Result<()> {
+        let nicepath = format!("[{}]/{}", self.name, path.join("/"));
+        println!("writing {}", nicepath);
+        self.inner.write(path, data).await
     }
 }

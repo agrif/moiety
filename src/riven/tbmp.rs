@@ -1,21 +1,19 @@
-use super::Resource;
-use crate::{
-    display::{
-        Bitmap,
-        PaletteBitmap,
-    },
-    filesystem::AsyncRead,
-    future::*,
-    mhk::deserialize_from,
-    ConvertError,
-    FormatFor,
-    FormatWriteFor,
-    MhkError,
-    MhkFormat,
-    PngError,
-    PngFormat,
-};
-use png::HasParameters;
+use crate::{Bitmap, PaletteBitmap, ResourceType, Format};
+use crate::mhk::{MhkFormat, MhkError, deserialize_from};
+
+use anyhow::Result;
+use serde_derive::{Deserialize, Serialize};
+use smol::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, SeekFrom};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TBmp;
+
+impl ResourceType for TBmp {
+    type Data = Bitmap;
+    fn name(&self) -> &str {
+        "tBMP"
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct BmpHeader {
@@ -44,7 +42,7 @@ struct BmpPalette {
 fn bytes_to_rgb(
     bpp: u8,
     bytes: Vec<u8>,
-) -> Result<Vec<palette::Srgb<u8>>, MhkError> {
+) -> Result<Vec<palette::Srgb<u8>>> {
     // remember, riven uses BGR
     match bpp {
         24 => {
@@ -53,18 +51,17 @@ fn bytes_to_rgb(
                 .map(|c| palette::Srgb::new(c[2], c[1], c[0]))
                 .collect())
         },
-        _ => Err(MhkError::InvalidFormat("unknown bits per pixel")),
+        _ => anyhow::bail!(MhkError::InvalidFormat("unknown bits per pixel")),
     }
 }
 
-async fn read_uncompressed<'a, R>(
-    header: &'a BmpHeader,
-    flags: &'a BmpFlags,
-    input: &'a R,
-    pos: &'a mut u64,
-) -> Result<Vec<u8>, MhkError>
+async fn read_uncompressed<R>(
+    header: &BmpHeader,
+    flags: &BmpFlags,
+    input: &mut R,
+) -> Result<Vec<u8>>
 where
-    R: AsyncRead,
+    R: AsyncRead + AsyncSeek + Unpin,
 {
     let mut data = vec![
         0;
@@ -72,12 +69,14 @@ where
             * header.height as usize
             * flags.bytes_per_pixel as usize
     ];
+    let jump = header.bytes_per_row as i64
+        - (header.width as i64 * flags.bytes_per_pixel as i64);
     for y in 0..header.height as usize {
         let start = y * header.width as usize * flags.bytes_per_pixel as usize;
         let end =
             start + header.width as usize * flags.bytes_per_pixel as usize;
-        await!(input.read_exact_at(*pos, &mut data[start..end]))?;
-        *pos += header.bytes_per_row as u64;
+        input.read_exact(&mut data[start..end]).await?;
+        input.seek(SeekFrom::Current(jump)).await?;
     }
     Ok(data)
 }
@@ -106,17 +105,16 @@ fn copy_lookback_repeat(
     Some(())
 }
 
-async fn read_riven<'a, R>(
-    header: &'a BmpHeader,
-    flags: &'a BmpFlags,
-    input: &'a R,
-    pos: &'a mut u64,
-) -> Result<Vec<u8>, MhkError>
+async fn read_riven<R>(
+    header: &BmpHeader,
+    flags: &BmpFlags,
+    input: &mut R,
+) -> Result<Vec<u8>>
 where
-    R: AsyncRead,
+    R: AsyncRead + AsyncSeek + Unpin,
 {
     if flags.bits_per_pixel != 8 {
-        return Err(MhkError::InvalidFormat(
+        anyhow::bail!(MhkError::InvalidFormat(
             "bad bits per pixel in tBMP riven compression",
         ));
     }
@@ -126,7 +124,7 @@ where
     let mut out = Vec::with_capacity(
         header.height as usize * header.bytes_per_row as usize,
     );
-    await!(input.read_until_end_at(*pos, &mut cmds))?;
+    input.read_to_end(&mut cmds).await?;
 
     // used for when something unexpected comes up
     let invalid_err = || MhkError::InvalidFormat("bad tBMP riven command");
@@ -139,7 +137,7 @@ where
                 // end of stream
                 break 'decode;
             },
-            n @ 0x01...0x3f => {
+            n @ 0x01..=0x3f => {
                 // output n pixel duplets, direct from stream
                 c += 1;
                 out.extend_from_slice(
@@ -147,22 +145,22 @@ where
                 );
                 c += 2 * n as usize;
             },
-            mut n @ 0x40...0x7f => {
-                // repeat last 2 pixels n times, where...
+            mut n @ 0x40..=0x7f => {
+                // repeat last 2 pixels n times, where..=
                 n &= 0x3f;
                 c += 1;
                 copy_lookback_repeat(&mut out, 2, 2 * n as usize)
                     .ok_or_else(invalid_err)?;
             },
-            mut n @ 0x80...0xbf => {
-                // repeat last 4 pixels n times, where...
+            mut n @ 0x80..=0xbf => {
+                // repeat last 4 pixels n times, where..=
                 n &= 0x3f;
                 c += 1;
                 copy_lookback_repeat(&mut out, 4, 4 * n as usize)
                     .ok_or_else(invalid_err)?;
             },
-            mut n_subcommands @ 0xc0...0xff => {
-                // n_subcommands follow, where...
+            mut n_subcommands @ 0xc0..=0xff => {
+                // n_subcommands follow, where..=
                 n_subcommands &= 0x3f;
                 c += 1;
                 while c < cmds.len() && n_subcommands > 0 {
@@ -172,8 +170,8 @@ where
                             // end of stream
                             break 'decode;
                         },
-                        [mut m @ 0x01...0x0f, ..] => {
-                            // repeat duplet at relative position m, where...
+                        [mut m @ 0x01..=0x0f, ..] => {
+                            // repeat duplet at relative position m, where..=
                             m &= 0x0f;
                             c += 1;
                             let start = out.len() - 2 * m as usize;
@@ -191,7 +189,7 @@ where
                                 .ok_or_else(invalid_err)?;
                             out.extend_from_slice(&[a, p]);
                         },
-                        [mut m @ 0x11...0x1f, ..] => {
+                        [mut m @ 0x11..=0x1f, ..] => {
                             // output first pixel of last duplet, then pixel at -m
                             // (-m is given in pixels)
                             // careful: -m is relative to the second
@@ -208,7 +206,7 @@ where
                                 .ok_or_else(invalid_err)?;
                             out.push(b);
                         },
-                        [mut x @ 0x20...0x2f, ..] => {
+                        [mut x @ 0x20..=0x2f, ..] => {
                             // repeat last duplet, but add x to second
                             x &= 0x0f;
                             c += 1;
@@ -218,7 +216,7 @@ where
                             let (a, b) = (duplet[0], duplet[1]);
                             out.extend_from_slice(&[a, b.wrapping_add(x)]);
                         },
-                        [mut x @ 0x30...0x3f, ..] => {
+                        [mut x @ 0x30..=0x3f, ..] => {
                             // repeat last duplet, but subtract x from second
                             x &= 0x0f;
                             c += 1;
@@ -236,7 +234,7 @@ where
                                 .ok_or_else(invalid_err)?;
                             out.extend_from_slice(&[p, b]);
                         },
-                        [mut m @ 0x41...0x4f, ..] => {
+                        [mut m @ 0x41..=0x4f, ..] => {
                             // output pixel at -m, then second pixel of last duplet
                             // (-m is given in pixels)
                             m &= 0x0f;
@@ -254,7 +252,7 @@ where
                             c += 3;
                             out.extend_from_slice(&[p1, p2]);
                         },
-                        [mut m @ 0x51...0x57, p, ..] => {
+                        [mut m @ 0x51..=0x57, p, ..] => {
                             // output pixel at -m, then p
                             m &= 0x07;
                             c += 2;
@@ -264,7 +262,7 @@ where
                             out.extend_from_slice(&[a, p]);
                         },
                         // 0x58 is intentionally missing
-                        [mut m @ 0x59...0x5f, p, ..] => {
+                        [mut m @ 0x59..=0x5f, p, ..] => {
                             // output p, then pixel at -m
                             // careful: -m is relative to the second
                             // output pixel!
@@ -277,7 +275,7 @@ where
                                 .ok_or_else(invalid_err)?;
                             out.push(b);
                         },
-                        [mut x @ 0x60...0x6f, p, ..] => {
+                        [mut x @ 0x60..=0x6f, p, ..] => {
                             // output p, then (second pixel last duplet) + x
                             x &= 0x0f;
                             c += 2;
@@ -286,7 +284,7 @@ where
                                 .ok_or_else(invalid_err)?;
                             out.extend_from_slice(&[p, b.wrapping_add(x)]);
                         },
-                        [mut x @ 0x70...0x7f, p, ..] => {
+                        [mut x @ 0x70..=0x7f, p, ..] => {
                             // output p, then (second pixel last duplet) - x
                             x &= 0x0f;
                             c += 2;
@@ -295,7 +293,7 @@ where
                                 .ok_or_else(invalid_err)?;
                             out.extend_from_slice(&[p, b.wrapping_sub(x)]);
                         },
-                        [mut x @ 0x80...0x8f, ..] => {
+                        [mut x @ 0x80..=0x8f, ..] => {
                             // repeat last duplet, but add x to first
                             x &= 0x0f;
                             c += 1;
@@ -305,7 +303,7 @@ where
                             let (a, b) = (duplet[0], duplet[1]);
                             out.extend_from_slice(&[a.wrapping_add(x), b]);
                         },
-                        [mut x @ 0x90...0x9f, p, ..] => {
+                        [mut x @ 0x90..=0x9f, p, ..] => {
                             // output (first pixel last duplet) + x, then p
                             x &= 0x0f;
                             c += 2;
@@ -342,7 +340,7 @@ where
                                 b.wrapping_sub(y),
                             ]);
                         },
-                        [mut x @ 0xc0...0xcf, ..] => {
+                        [mut x @ 0xc0..=0xcf, ..] => {
                             // repeat last duplet, but subtract x from first
                             x &= 0x0f;
                             c += 1;
@@ -352,7 +350,7 @@ where
                             let (a, b) = (duplet[0], duplet[1]);
                             out.extend_from_slice(&[a.wrapping_sub(x), b]);
                         },
-                        [mut x @ 0xd0...0xdf, p, ..] => {
+                        [mut x @ 0xd0..=0xdf, p, ..] => {
                             // output (first pixel last duplet) - x, then p
                             x &= 0x0f;
                             c += 2;
@@ -418,7 +416,7 @@ where
                             // what remains are ugly repeat commands
                             if cmd & 0xa0 != 0xa0 || cmd & 0x0c == 0 {
                                 // this is note one of them
-                                return Err(MhkError::InvalidFormat(
+                                anyhow::bail!(MhkError::InvalidFormat(
                                     "unknown tBMP riven subcommand",
                                 ));
                             }
@@ -474,210 +472,100 @@ where
     Ok(out)
 }
 
-impl<R> FormatFor<R, Resource<Bitmap>> for MhkFormat
+#[async_trait::async_trait(?Send)]
+impl<I> Format<TBmp, I, Bitmap> for MhkFormat
 where
-    R: AsyncRead,
+    I: AsyncRead + AsyncSeek + Unpin,
 {
-    fn convert<'a>(&'a self, input: R) -> Fut<'a, Result<Bitmap, MhkError>>
-    where
-        R: 'a,
-    {
-        fut!({
-            let mut pos = 0;
-            let header: BmpHeader = await!(deserialize_from(&input, &mut pos))?;
-            let mut flags = BmpFlags {
-                bits_per_pixel: match header.compression_flags & 0x7 {
-                    0 => 1,
-                    1 => 4,
-                    2 => 8,
-                    3 => 16,
-                    4 => 24,
-                    _ => return Err(MhkError::InvalidFormat("bad bpp")),
-                },
-                bytes_per_pixel: 0, // filled in below
-                palette_present: (header.compression_flags & (1 << 3)) > 0,
-                secondary: ((header.compression_flags & (0xf << 4)) >> 4) as u8,
-                primary: ((header.compression_flags & (0xf << 8)) >> 8) as u8,
-            };
-            flags.bytes_per_pixel = (flags.bits_per_pixel + 7) / 8;
+    async fn parse(&self, _res: &TBmp, input: &mut I) -> Result<Bitmap> {
+        let header: BmpHeader = deserialize_from(input).await?;
+        let mut flags = BmpFlags {
+            bits_per_pixel: match header.compression_flags & 0x7 {
+                0 => 1,
+                1 => 4,
+                2 => 8,
+                3 => 16,
+                4 => 24,
+                _ => anyhow::bail!(MhkError::InvalidFormat("bad bpp")),
+            },
+            bytes_per_pixel: 0, // filled in below
+            palette_present: (header.compression_flags & (1 << 3)) > 0,
+            secondary: ((header.compression_flags & (0xf << 4)) >> 4) as u8,
+            primary: ((header.compression_flags & (0xf << 8)) >> 8) as u8,
+        };
+        flags.bytes_per_pixel = (flags.bits_per_pixel + 7) / 8;
 
-            if header.bytes_per_row < header.width {
-                return Err(MhkError::InvalidFormat("bad tBMP stride"));
-            }
+        if header.bytes_per_row < header.width {
+            anyhow::bail!(MhkError::InvalidFormat("bad tBMP stride"));
+        }
 
-            // read a palette, if it's here
-            let mut palette: Option<Vec<palette::Srgb<u8>>> = None;
-            if flags.palette_present || flags.bits_per_pixel == 8 {
-                let oldpos = pos;
-                let pchunk: BmpPalette =
-                    await!(deserialize_from(&input, &mut pos))?;
-                let table_size = pchunk.table_size as u64 - (pos - oldpos);
-                let mut colors = vec![0; table_size as usize];
-                await!(input.read_exact_at(pos, &mut colors))?;
+        // read a palette, if it's here
+        let mut palette: Option<Vec<palette::Srgb<u8>>> = None;
+        if flags.palette_present || flags.bits_per_pixel == 8 {
+            let oldpos = input.seek(SeekFrom::Current(0)).await?;
+            let pchunk: BmpPalette = deserialize_from(input).await?;
+            let newpos = input.seek(SeekFrom::Current(0)).await?;
+            let table_size = pchunk.table_size as u64 - (newpos - oldpos);
+            let mut colors = vec![0; table_size as usize];
+            input.read_exact(&mut colors).await?;
 
-                let colors_parsed =
-                    bytes_to_rgb(pchunk.bits_per_color, colors)?;
-                if colors_parsed.len() < pchunk.color_count as usize {
-                    return Err(MhkError::InvalidFormat(
-                        "not enough colors in palette",
-                    ));
-                }
-
-                palette = Some(colors_parsed);
-                pos = oldpos + pchunk.table_size as u64;
-            }
-
-            // we don't know how to do any secondary compression
-            if flags.secondary != 0 {
-                return Err(MhkError::InvalidFormat(
-                    "unknown secondary tBMP compression",
+            let colors_parsed = bytes_to_rgb(pchunk.bits_per_color, colors)?;
+            if colors_parsed.len() < pchunk.color_count as usize {
+                anyhow::bail!(MhkError::InvalidFormat(
+                    "not enough colors in palette",
                 ));
             }
 
-            let data_raw = match flags.primary {
-                0 => {
-                    await!(read_uncompressed(
-                        &header, &flags, &input, &mut pos
-                    ))?
-                },
-                4 => await!(read_riven(&header, &flags, &input, &mut pos))?,
-                _ => {
-                    return Err(MhkError::InvalidFormat(
-                        "unknown primary tBMP compression",
-                    ))
-                },
-            };
+            palette = Some(colors_parsed);
+            input.seek(SeekFrom::Start(oldpos + pchunk.table_size as u64))
+                .await?;
+        }
 
-            if let Some(p) = palette {
-                let colored = data_raw
-                    .iter()
-                    .map(|&b| {
-                        p.get(b as usize)
-                            .cloned()
-                            .unwrap_or(palette::Srgb::new(0, 0, 0))
-                    })
-                    .collect();
-                Ok(Bitmap {
-                    width: header.width,
-                    height: header.height,
-                    palette: Some(PaletteBitmap {
-                        palette: p,
-                        image: data_raw,
-                    }),
-                    data: colored,
-                })
-            } else {
-                Ok(Bitmap {
-                    width: header.width,
-                    height: header.height,
-                    palette: None,
-                    data: bytes_to_rgb(flags.bits_per_pixel, data_raw)?,
-                })
-            }
-        })
-    }
-}
-
-impl<R> FormatFor<R, Resource<Bitmap>> for PngFormat
-where
-    R: AsyncRead,
-{
-    fn convert<'a>(&'a self, input: R) -> Fut<'a, Result<Bitmap, PngError>>
-    where
-        R: 'a,
-    {
-        fut!({
-            let mut buf = Vec::with_capacity(1 << 16);
-            await!(input.read_until_end_at(0, &mut buf))
-                .map_err(PngError::Io)?;
-            let mut dec = png::Decoder::new(std::io::Cursor::new(buf));
-            dec.set(
-                png::Transformations::EXPAND
-                    | png::Transformations::STRIP_ALPHA,
-            );
-            let (info, mut reader) =
-                dec.read_info().map_err(PngError::Decode)?;
-            let framesize = (info.width * info.height * 3) as usize;
-            let mut data = Vec::with_capacity(framesize);
-            unsafe {
-                data.set_len(framesize);
-                reader.next_frame(&mut data).map_err(PngError::Decode)?;
-            }
-
-            Ok(Bitmap {
-                width: info.width as u16,
-                height: info.height as u16,
-                palette: None,
-                data: palette::Pixel::from_raw_slice(&data).to_owned(),
-            })
-        })
-    }
-
-    fn extension<'a>(&'a self) -> Option<&'a str> { Some(&".png") }
-}
-
-impl<R, Fmt> FormatWriteFor<R, Resource<Bitmap>, Fmt> for PngFormat
-where
-    R: AsyncRead,
-    Fmt: FormatFor<R, Resource<Bitmap>>,
-{
-    type WriteError = PngError;
-
-    fn write<'a>(
-        &'a self,
-        input: R,
-        fmt: &'a Fmt,
-    ) -> Fut<
-        'a,
-        Result<Vec<u8>, crate::ConvertError<Fmt::Error, Self::WriteError>>,
-    >
-    where
-        R: 'a,
-        Fmt: 'a,
-    {
-        fut!({
-            let bmp = await!(fmt.convert(input)).map_err(ConvertError::Read)?;
-            let mut buf = std::io::Cursor::new(Vec::with_capacity(
-                bmp.width as usize * bmp.height as usize * 3,
+        // we don't know how to do any secondary compression
+        if flags.secondary != 0 {
+            anyhow::bail!(MhkError::InvalidFormat(
+                "unknown secondary tBMP compression",
             ));
-            {
-                let mut enc = png::Encoder::new(
-                    &mut buf,
-                    bmp.width as u32,
-                    bmp.height as u32,
-                );
-                enc.set(png::BitDepth::Eight);
-                if let Some(pal) = bmp.palette {
-                    enc.set(png::ColorType::Indexed);
-                    let mut writer = enc.write_header().map_err(|e| {
-                        ConvertError::Write(PngError::Encode(e))
-                    })?;
-                    writer
-                        .write_chunk(
-                            png::chunk::PLTE,
-                            palette::Pixel::into_raw_slice(&pal.palette),
-                        )
-                        .map_err(|e| {
-                            ConvertError::Write(PngError::Encode(e))
-                        })?;
-                    writer.write_image_data(&pal.image[..]).map_err(|e| {
-                        ConvertError::Write(PngError::Encode(e))
-                    })?;
-                } else {
-                    enc.set(png::ColorType::RGB);
-                    let mut writer = enc.write_header().map_err(|e| {
-                        ConvertError::Write(PngError::Encode(e))
-                    })?;
-                    writer
-                        .write_image_data(palette::Pixel::into_raw_slice(
-                            &bmp.data,
-                        ))
-                        .map_err(|e| {
-                            ConvertError::Write(PngError::Encode(e))
-                        })?;
-                }
-            }
-            Ok(buf.into_inner())
-        })
+        }
+
+        let data_raw = match flags.primary {
+            0 => {
+                read_uncompressed(&header, &flags, input).await?
+            },
+            4 => read_riven(&header, &flags, input).await?,
+            _ => {
+                anyhow::bail!(MhkError::InvalidFormat(
+                    "unknown primary tBMP compression",
+                ))
+            },
+        };
+
+        if let Some(p) = palette {
+            let colored = data_raw
+                .iter()
+                .map(|&b| {
+                    p.get(b as usize)
+                        .cloned()
+                        .unwrap_or(palette::Srgb::new(0, 0, 0))
+                })
+                .collect();
+            Ok(Bitmap {
+                width: header.width,
+                height: header.height,
+                palette: Some(PaletteBitmap {
+                    palette: p,
+                    image: data_raw,
+                }),
+                data: colored,
+            })
+        } else {
+            Ok(Bitmap {
+                width: header.width,
+                height: header.height,
+                palette: None,
+                data: bytes_to_rgb(flags.bits_per_pixel, data_raw)?,
+            })
+        }
     }
 }
+

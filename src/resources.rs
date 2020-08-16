@@ -1,149 +1,104 @@
 use crate::{
-    ConvertError,
-    Format,
-    FormatFor,
-    FormatWriteFor,
-    ResourceMap,
-    ResourceMapList,
-    ResourceMapWrite,
-    ResourceType,
-    Stack,
+    Format, FormatWrite,
+    ResourceMap, ResourceMapList, ResourceMapWrite,
+    ResourceType, Stack,
 };
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Fail)]
-pub enum ResourcesError<M: failure::Fail, F: failure::Fail> {
-    #[fail(display = "map error: {}", _0)]
-    Map(#[cause] M),
-    #[fail(display = "format error: {}", _0)]
-    Format(#[cause] F),
-}
+use anyhow::Result;
 
-pub struct Resources<M, F> {
+pub struct Resources<M> {
     map: M,
-    format: F,
 }
 
-impl<M, F> Resources<M, F>
-where
-    M: ResourceMap,
-    F: Format<M::Handle>,
-{
-    pub fn new(map: M, format: F) -> Self { Resources { map, format } }
+impl<M> Resources<M> where M: ResourceMap {
+    pub fn new(map: M) -> Self {
+        Resources {
+            map,
+        }
+    }
 
-    pub async fn open_raw<'a, R: ResourceType + 'a>(
-        &'a self,
-        stack: M::Stack,
-        typ: R,
-        id: u16,
-    ) -> Result<M::Handle, ResourcesError<M::Error, F::Error>>
+    pub async fn open_raw<R>(&self, stack: M::Stack, typ: R, id: u16)
+                             -> Result<M::Handle>
     where
-        F: FormatFor<M::Handle, R>,
+        R: ResourceType,
+        M::Format: Format<R, M::Handle, R::Data>,
     {
-        let handle = await!(self.map.open_raw(&self.format, stack, typ, id))
-            .map_err(ResourcesError::Map)?;
+        let fmt = self.map.format();
+        let extension = fmt.extension(&typ).unwrap_or("");
+        let handle = self.map.open_raw(stack, typ.name(), id, extension).await?;
         Ok(handle)
     }
 
-    pub async fn open<'a, R: ResourceType + 'a>(
-        &'a self,
-        stack: M::Stack,
-        typ: R,
-        id: u16,
-    ) -> Result<R::Data, ResourcesError<M::Error, F::Error>>
+    pub async fn open<R>(&self, stack: M::Stack, typ: R, id: u16)
+                         -> Result<R::Data>
     where
-        F: FormatFor<M::Handle, R>,
+        R: ResourceType,
+        M::Format: Format<R, M::Handle, R::Data>,
     {
-        let handle = await!(self.map.open_raw(&self.format, stack, typ, id))
-            .map_err(ResourcesError::Map)?;
-        let res = await!(self.format.convert(handle))
-            .map_err(ResourcesError::Format)?;
+        let mut handle = self.open_raw(stack, typ, id).await?;
+        let res = self.map.format().parse(&typ, &mut handle).await?;
         Ok(res)
     }
 
-    pub async fn write_resource_to<'a, R: ResourceType + 'a, Mw: 'a, Fw: 'a>(
-        &'a self,
-        other: &'a mut Resources<Mw, Fw>,
+    pub async fn write_resource_to<R, Mw>(
+        &self,
+        other: &mut Resources<Mw>,
         stack: M::Stack,
         typ: R,
-        id: u16,
-    ) -> Result<
-        (),
-        ConvertError<
-            ResourcesError<M::Error, F::Error>,
-            ResourcesError<Mw::Error, Fw::WriteError>,
-        >,
-    >
+        id: u16
+    ) -> Result<()>
     where
-        F: FormatFor<M::Handle, R>,
-        Mw: ResourceMapWrite<Stack = M::Stack>,
-        Fw: FormatFor<Mw::Handle, R> + FormatWriteFor<M::Handle, R, F>,
+        R: ResourceType,
+        Mw: ResourceMapWrite<Stack=M::Stack>,
+        Mw::Format: FormatWrite<M::Format, R, M::Handle, R::Data>,
+        M::Format: Format<R, M::Handle, R::Data>,
         M::Stack: Clone,
     {
-        let handle =
-            await!(self.map.open_raw(&self.format, stack.clone(), typ, id))
-                .map_err(|e| ConvertError::Read(ResourcesError::Map(e)))?;
-        let data =
-            await!(other.format.write(handle, &self.format)).map_err(|e| {
-                match e {
-                    ConvertError::Read(e) => {
-                        ConvertError::Read(ResourcesError::Format(e))
-                    },
-                    ConvertError::Write(e) => {
-                        ConvertError::Write(ResourcesError::Format(e))
-                    },
-                }
-            })?;
-        await!(other.map.write_raw(&other.format, stack, typ, id, &data))
-            .map_err(|e| ConvertError::Write(ResourcesError::Map(e)))
+        let mut handle = self.open_raw(stack.clone(), typ, id).await?;
+        let data = other.map.format().convert(
+            self.map.format(), &typ, &mut handle).await?;
+        let extension =other.map.format().extension(&typ)
+            .unwrap_or("").to_owned();
+        other.map.write_raw(
+            stack.clone(), typ.name(), id, &extension, &data).await?;
+        Ok(())
     }
 
-    pub async fn write_stack_to<'a, R: ResourceType + 'a, Mw: 'a, Fw: 'a>(
-        &'a self,
-        other: &'a mut Resources<Mw, Fw>,
+    pub async fn write_stack_to<R, Mw>(
+        &self,
+        other: &mut Resources<Mw>,
         stack: M::Stack,
         typ: R,
-    ) -> Result<
-        (),
-        ConvertError<
-            ResourcesError<M::Error, F::Error>,
-            ResourcesError<Mw::Error, Fw::WriteError>,
-        >,
-    >
+    ) -> Result<()>
     where
+        R: ResourceType,
         M: ResourceMapList,
-        F: FormatFor<M::Handle, R>,
-        Mw: ResourceMapWrite<Stack = M::Stack>,
-        Fw: FormatFor<Mw::Handle, R> + FormatWriteFor<M::Handle, R, F>,
+        Mw: ResourceMapWrite<Stack=M::Stack>,
+        Mw::Format: FormatWrite<M::Format, R, M::Handle, R::Data>,
+        M::Format: Format<R, M::Handle, R::Data>,
         M::Stack: Clone,
     {
-        for id in await!(self.map.list(stack.clone(), typ))
-            .map_err(|e| ConvertError::Read(ResourcesError::Map(e)))?
-        {
-            await!(self.write_resource_to(other, stack.clone(), typ, id))?;
+        for id in self.map.list(stack.clone(), typ.name()).await? {
+            self.write_resource_to(other, stack.clone(), typ, id).await?;
         }
         Ok(())
     }
 
-    pub async fn write_to<'a, R: ResourceType + 'a, Mw: 'a, Fw: 'a>(
-        &'a self,
-        other: &'a mut Resources<Mw, Fw>,
+    pub async fn write_to<R, Mw>(
+        &self,
+        other: &mut Resources<Mw>,
         typ: R,
-    ) -> Result<
-        (),
-        ConvertError<
-            ResourcesError<M::Error, F::Error>,
-            ResourcesError<Mw::Error, Fw::WriteError>,
-        >,
-    >
+    ) -> Result<()>
     where
+        R: ResourceType,
         M: ResourceMapList,
-        F: FormatFor<M::Handle, R>,
-        Mw: ResourceMapWrite<Stack = M::Stack>,
-        Fw: FormatFor<Mw::Handle, R> + FormatWriteFor<M::Handle, R, F>,
-        M::Stack: Stack,
+        Mw: ResourceMapWrite<Stack=M::Stack>,
+        Mw::Format: FormatWrite<M::Format, R, M::Handle, R::Data>,
+        M::Format: Format<R, M::Handle, R::Data>,
+        M::Stack: Clone,
     {
         for stack in M::Stack::all() {
-            await!(self.write_stack_to(other, stack.clone(), typ))?;
+            self.write_stack_to(other, stack.clone(), typ).await?;
         }
         Ok(())
     }

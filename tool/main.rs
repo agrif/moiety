@@ -1,53 +1,29 @@
-#![feature(async_await)]
-#![feature(await_macro)]
-#![feature(futures_api)]
+use moiety::filesystem::{LocalFilesystem, LoggingFilesystem};
+use moiety::{MhkMap, DirectMap, JsonFormat, PngFormat, MixedFormat, Resources};
+use moiety::riven;
 
-use moiety::*;
-use riven::Resource;
+fn main() -> anyhow::Result<()> {
+    smol::run(async {
+        let fs = LocalFilesystem::new("/Users/agrif/vault/games/riven/");
+        let outfs = LoggingFilesystem::new(
+            "out",
+            LocalFilesystem::new("./local/riven/"),
+        );
 
-async fn go() -> Result<(), MhkError> {
-    let fs = filesystem::LocalFilesystem::new("/home/agrif/vault/games/riven/");
-    let outfs = filesystem::LoggingFilesystem::new(
-        "w",
-        filesystem::LocalFilesystem::new("./web/local/"),
-    );
+        let map = MhkMap::new(fs, riven::map_5cd());
+        let outmap = DirectMap::new(outfs, MixedFormat {
+            bitmap: PngFormat,
+            record: JsonFormat(false),
+        });
 
-    let map = MhkMap::new(fs, riven::map_5cd());
-    let outmap = DirectMap::new(outfs);
+        let rs = Resources::new(map);
+        let mut outrs = Resources::new(outmap);
 
-    let fmt = MhkFormat;
-    let outfmt = riven::Format {
-        blst: JsonFormat,
-        card: JsonFormat,
-        name: JsonFormat,
-        plst: JsonFormat,
-        tbmp: PngFormat,
-    };
-
-    let rs = Resources::new(map, fmt);
-    let mut outrs = Resources::new(outmap, outfmt);
-
-    for_each_riven!(|r| => {
-       let x = await!(rs.write_to(&mut outrs, r));
-       println!("{:?}: {:?}", r, x);
-       x.unwrap();
-    });
-
-    // let x = await!(rs.write_resource_to(
-    //    &mut outrs,
-    //    riven::Stack::B,
-    //    riven::Resource::TBMP,
-    //    44
-    //));
-    // x.unwrap();
-
-    // let x = await!(rs.write_stack_to(&mut outrs, riven::Stack::B2, riven::Resource::TBMP));
-    // x.unwrap();
-
-    // let x = await!(rs.write_to(&mut outrs, riven::Resource::TBMP));
-    // println!("{:?}", x);
-
-    Ok(())
+        rs.write_to(&mut outrs, riven::TBlst).await?;
+        rs.write_to(&mut outrs, riven::TCard).await?;
+        rs.write_to(&mut outrs, riven::TName).await?;
+        rs.write_to(&mut outrs, riven::TPlst).await?;
+        rs.write_to(&mut outrs, riven::TBmp).await?;
+        Ok(())
+    })
 }
-
-fn main() -> Result<(), MhkError> { futures::executor::block_on(go()) }

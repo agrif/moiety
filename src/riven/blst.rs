@@ -1,12 +1,19 @@
-use super::Resource;
-use crate::{
-    filesystem::AsyncRead,
-    future::*,
-    mhk::deserialize_u16_table_from,
-    FormatFor,
-    MhkError,
-    MhkFormat,
-};
+use crate::{Record, ResourceType, Format};
+use crate::mhk::{MhkFormat, deserialize_u16_table_from};
+
+use anyhow::Result;
+use serde_derive::{Deserialize, Serialize};
+use smol::io::AsyncRead;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TBlst;
+
+impl ResourceType for TBlst {
+    type Data = Record<Vec<ButtonMeta>>;
+    fn name(&self) -> &str {
+        "BLST"
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -16,20 +23,14 @@ pub struct ButtonMeta {
     pub hotspot_id: u16,
 }
 
-impl<R> FormatFor<R, Resource<Vec<ButtonMeta>>> for MhkFormat
+#[async_trait::async_trait(?Send)]
+impl<I> Format<TBlst, I, Record<Vec<ButtonMeta>>> for MhkFormat
 where
-    R: AsyncRead,
+    I: AsyncRead + Unpin,
 {
-    fn convert<'a>(
-        &'a self,
-        input: R,
-    ) -> Fut<'a, Result<Vec<ButtonMeta>, MhkError>>
-    where
-        R: 'a,
+    async fn parse(&self, _res: &TBlst, input: &mut I)
+                   -> Result<Record<Vec<ButtonMeta>>>
     {
-        fut!({
-            let mut pos = 0;
-            await!(deserialize_u16_table_from(&input, &mut pos))
-        })
+        Ok(Record(deserialize_u16_table_from(input).await?))
     }
 }

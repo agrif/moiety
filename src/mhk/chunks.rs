@@ -1,3 +1,5 @@
+use serde_derive::Deserialize;
+
 #[derive(Debug, Deserialize)]
 pub struct MHWK {
     pub signature: [u8; 4],

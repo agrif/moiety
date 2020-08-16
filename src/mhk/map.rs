@@ -1,20 +1,15 @@
 use super::{
     MhkArchive,
+    MhkFormat,
     MhkError,
+    Narrow,
 };
-use crate::{
-    filesystem::{
-        Buffered,
-        Filesystem,
-        Narrow,
-    },
-    future::*,
-    FormatFor,
-    ResourceMap,
-    ResourceMapList,
-    ResourceType,
-    Stack,
-};
+use crate::filesystem::Filesystem;
+
+use anyhow::Result;
+use smol::io::{BufReader, AsyncSeek};
+
+use crate::{ResourceMap, ResourceMapList, Stack};
 use std::collections::HashMap;
 
 pub struct MhkMap<F, S>
@@ -23,23 +18,25 @@ where
 {
     filesystem: F,
     stackfiles: HashMap<S, Vec<String>>,
-    stacks: futures::lock::Mutex<HashMap<S, Vec<MhkArchive<F::Handle>>>>,
+    stacks: std::cell::RefCell<HashMap<S, Vec<MhkArchive<F::Handle>>>>,
 }
 
 impl<F, S> MhkMap<F, S>
 where
     F: Filesystem,
-    S: Stack,
+    F::Handle: AsyncSeek,
+    S: Stack + Copy,
 {
     pub fn new(filesystem: F, stackfiles: HashMap<S, Vec<&str>>) -> Self {
         MhkMap {
             filesystem,
             stackfiles: stackfiles
                 .iter()
-                .map(|(k, v)| (*k, v.iter().map(|s| (*s).to_owned()).collect()))
+                .map(|(k, v)| (k.clone(), v.iter()
+                               .map(|s| (*s).to_owned()).collect()))
                 .collect(),
-            stacks: futures::lock::Mutex::new(HashMap::with_capacity(
-                8, // FIXME number of stacks
+            stacks: std::cell::RefCell::new(HashMap::with_capacity(
+                S::all().len(),
             )),
         }
     }
@@ -48,88 +45,84 @@ where
         if let Some(names) = self.stackfiles.get(&stack) {
             names.clone()
         } else {
-            vec![format!("{}_Data.MHK", stack.letter())]
+            vec![format!("{}.MHK", stack.name())]
         }
     }
 
-    async fn ensure_stack(&self, stack: S) -> Result<(), MhkError> {
-        let mut stacks = await!(self.stacks.lock());
+    async fn ensure_stack(&self, stack: S) -> Result<()> {
+        let mut stacks = self.stacks.borrow_mut();
         // make sure this stack is loaded
         if !stacks.contains_key(&stack) {
             let names = self.stack_file_names(stack);
-            let archive_futures = names.iter().map(async move |n| {
+            let mut archives = Vec::with_capacity(names.len());
+            for n in names.iter() {
                 let path = &[n.as_ref()];
-                let handle = await!(self.filesystem.open(path))?;
-                await!(MhkArchive::new(handle))
-            });
-            let archives: Result<Vec<_>, MhkError> =
-                await!(futures::future::join_all(archive_futures))
-                    .into_iter()
-                    .collect();
-            stacks.insert(stack, archives?);
+                let handle = self.filesystem.open(path).await?;
+                archives.push(MhkArchive::new(handle).await?);
+            }
+            stacks.insert(stack, archives);
         }
         Ok(())
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl<F, S> ResourceMap for MhkMap<F, S>
 where
     F: Filesystem,
-    S: Stack,
+    F::Handle: AsyncSeek,
+    S: Stack + Copy,
 {
-    type Error = MhkError;
-    type Handle = Narrow<std::rc::Rc<Buffered<F::Handle>>>;
+    type Handle = Narrow<BufReader<F::Handle>>;
     type Stack = S;
+    type Format = MhkFormat;
 
-    fn open_raw<'a, T: ResourceType + 'a, Fmt: FormatFor<Self::Handle, T>>(
-        &'a self,
-        _fmt: &'a Fmt,
-        stack: S,
-        typ: T,
-        id: u16,
-    ) -> Fut<'a, Result<Self::Handle, Self::Error>> {
-        fut!({
-            await!(self.ensure_stack(stack))?;
-            let stacks = await!(self.stacks.lock());
-            for arc in stacks.get(&stack).unwrap() {
-                let rsrc = arc.open(typ, id);
-                if rsrc.is_ok() {
-                    return rsrc;
-                }
+    fn format(&self) -> &Self::Format {
+        &MhkFormat
+    }
+
+    async fn open_raw(&self, stack: Self::Stack, typ: &str, id: u16, _ext: &str)
+                      -> Result<Self::Handle>
+    {
+        self.ensure_stack(stack).await?;
+        let stacks = self.stacks.borrow();
+        for arc in stacks.get(&stack).unwrap() {
+            let rsrc = arc.open(typ, id);
+            match rsrc {
+                Ok(r) => return Ok(r),
+                Err(_) => (), // we should only ignore if ResourceNotFound, but
             }
+        }
 
-            Err(MhkError::ResourceNotFound(
-                Some(stack.name()),
-                typ.name(),
-                id,
-            ))
-        })
+        anyhow::bail!(MhkError::ResourceNotFound(
+            Some(stack.name().to_owned()),
+            typ.to_owned(),
+            id,
+        ));
     }
 }
 
+#[async_trait::async_trait(?Send)]
 impl<F, S> ResourceMapList for MhkMap<F, S>
 where
     F: Filesystem,
-    S: Stack,
+    F::Handle: AsyncSeek,
+    S: Stack + Copy,
 {
-    fn list<'a, T: ResourceType + 'a>(
-        &'a self,
-        stack: Self::Stack,
-        typ: T,
-    ) -> Fut<'a, Result<Vec<u16>, Self::Error>> {
-        fut!({
-            await!(self.ensure_stack(stack))?;
-            let stacks = await!(self.stacks.lock());
-            let mut ret = vec![];
-            for arc in stacks.get(&stack).unwrap() {
-                if let Some(rs) = arc.resources.get(typ.name()) {
-                    for (id, _) in rs {
-                        ret.push(*id);
-                    }
+    async fn list(&self, stack: <Self as ResourceMap>::Stack, typ: &str)
+                  -> Result<Vec<u16>>
+    {
+        self.ensure_stack(stack).await?;
+        let stacks = self.stacks.borrow();
+        let mut ret = vec![];
+        for arc in stacks.get(&stack).unwrap() {
+            if let Some(rs) = arc.resources.get(typ) {
+                for (id, _) in rs {
+                    ret.push(*id);
                 }
             }
-            ret.sort();
-            Ok(ret)
-        })
+        }
+        ret.sort();
+        Ok(ret)
     }
 }

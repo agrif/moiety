@@ -1,12 +1,10 @@
-use crate::{
-    filesystem::AsyncRead,
-    future::*,
-    mhk::{
-        deserialize_from,
-        deserialize_u16_table_from,
-    },
-    MhkError,
-};
+use crate::mhk::{MhkError, deserialize_from, deserialize_u16_table_from};
+
+use std::pin::Pin;
+
+use anyhow::Result;
+use serde_derive::{Deserialize, Serialize};
+use smol::io::AsyncRead;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -23,18 +21,17 @@ pub enum Event {
     DisplayUpdate,
 }
 
-pub async fn deserialize_handlers<'a, R>(
-    reader: &'a R,
-    pos: &'a mut u64,
-) -> Result<std::collections::HashMap<Event, Vec<Command>>, MhkError>
+pub async fn deserialize_handlers<R>(
+    reader: &mut R,
+) -> Result<std::collections::HashMap<Event, Vec<Command>>>
 where
-    R: AsyncRead,
+    R: AsyncRead + Unpin,
 {
-    let count: u16 = await!(deserialize_from(reader, pos))?;
+    let count: u16 = deserialize_from(reader).await?;
     let mut handlers = std::collections::HashMap::with_capacity(count as usize);
     for _ in 0..count {
-        let event_type: u16 = await!(deserialize_from(reader, pos))?;
-        let commands = await!(deserialize_commands(reader, pos))?;
+        let event_type: u16 = deserialize_from(reader).await?;
+        let commands = deserialize_commands(reader).await?;
         let event = match event_type {
             0 => Ok(Event::MouseDown),
             1 => Ok(Event::MouseStillDown),
@@ -187,21 +184,21 @@ pub enum Command {
 
 // box this one up, because otherwise we make an infinite type
 pub fn deserialize_commands<'a, R>(
-    reader: &'a R,
-    pos: &'a mut u64,
-) -> Fut<'a, Result<Vec<Command>, MhkError>>
+    reader: &'a mut R,
+) -> Pin<Box<dyn smol::future::Future<Output=Result<Vec<Command>>> + 'a>>
 where
-    R: AsyncRead,
+    R: AsyncRead + Unpin,
 {
     use Command::*;
-    fut!({
-        let count: u16 = await!(deserialize_from(reader, pos))?;
+
+    Box::pin(async move {
+        let count: u16 = deserialize_from(reader).await?;
         let mut commands = Vec::with_capacity(count as usize);
         for _ in 0..count {
-            let cmd: u16 = await!(deserialize_from(reader, pos))?;
+            let cmd: u16 = deserialize_from(reader).await?;
             let args: Vec<u16> =
-                await!(deserialize_u16_table_from(reader, pos))?;
-
+                deserialize_u16_table_from(reader).await?;
+            
             commands.push(match (cmd, args.as_slice()) {
                 (1, &[tbmp_id, left, top, right, bottom, u0, u1, u2, u3]) => {
                     Ok(DrawBmp {
@@ -216,18 +213,18 @@ where
                         u3,
                     })
                 },
-
+                
                 (2, &[id]) => Ok(GotoCard { id }),
-
+                
                 (3, slice) => {
                     if slice.len() < 1 {
-                        return Err(MhkError::InvalidFormat(
+                        anyhow::bail!(MhkError::InvalidFormat(
                             "bad inline SLST record",
                         ));
                     }
                     let n = slice[0] as usize;
                     if slice.len() != 6 + 4 * n {
-                        return Err(MhkError::InvalidFormat(
+                        anyhow::bail!(MhkError::InvalidFormat(
                             "bad inline SLST record",
                         ));
                     }
@@ -259,9 +256,9 @@ where
                         value_count as usize,
                     );
                     for _ in 0..value_count {
-                        let value: u16 = await!(deserialize_from(reader, pos))?;
+                        let value: u16 = deserialize_from(reader).await?;
                         let subcommands =
-                            await!(deserialize_commands(reader, pos))?;
+                            deserialize_commands(reader).await?;
                         branches.insert(value, subcommands);
                     }
                     Ok(Conditional { var, branches })
@@ -281,7 +278,7 @@ where
 
                 (17, args) => {
                     if args.len() < 2 || args.len() < 2 + args[1] as usize {
-                        return Err(MhkError::InvalidFormat("bad call"));
+                        anyhow::bail!(MhkError::InvalidFormat("bad call"));
                     }
                     Ok(Call {
                         cmd: args[0],
@@ -291,7 +288,7 @@ where
 
                 (18, args) => {
                     if args.len() != 1 && args.len() != 5 {
-                        return Err(MhkError::InvalidFormat("bad transition"));
+                        anyhow::bail!(MhkError::InvalidFormat("bad transition"));
                     }
                     let mut rect = None;
                     if args.len() == 5 {

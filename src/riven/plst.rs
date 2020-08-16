@@ -1,12 +1,19 @@
-use super::Resource;
-use crate::{
-    filesystem::AsyncRead,
-    future::*,
-    mhk::deserialize_u16_table_from,
-    FormatFor,
-    MhkError,
-    MhkFormat,
-};
+use crate::{Record, ResourceType, Format};
+use crate::mhk::{MhkFormat, deserialize_u16_table_from};
+
+use anyhow::Result;
+use serde_derive::{Deserialize, Serialize};
+use smol::io::AsyncRead;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TPlst;
+
+impl ResourceType for TPlst {
+    type Data = Record<Vec<PictureMeta>>;
+    fn name(&self) -> &str {
+        "PLST"
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -19,20 +26,14 @@ pub struct PictureMeta {
     pub bottom: u16,
 }
 
-impl<R> FormatFor<R, Resource<Vec<PictureMeta>>> for MhkFormat
+#[async_trait::async_trait(?Send)]
+impl<I> Format<TPlst, I, Record<Vec<PictureMeta>>> for MhkFormat
 where
-    R: AsyncRead,
+    I: AsyncRead + Unpin,
 {
-    fn convert<'a>(
-        &'a self,
-        input: R,
-    ) -> Fut<'a, Result<Vec<PictureMeta>, MhkError>>
-    where
-        R: 'a,
+    async fn parse(&self, _res: &TPlst, input: &mut I)
+                   -> Result<Record<Vec<PictureMeta>>>
     {
-        fut!({
-            let mut pos = 0;
-            await!(deserialize_u16_table_from(&input, &mut pos))
-        })
+        Ok(Record(deserialize_u16_table_from(input).await?))
     }
 }

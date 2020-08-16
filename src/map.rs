@@ -1,37 +1,31 @@
-use crate::{
-    future::*,
-    FormatFor,
-    ResourceType,
-};
+use crate::Stack;
 
+use anyhow::Result;
+use smol::io::AsyncRead;
+
+#[async_trait::async_trait(?Send)]
 pub trait ResourceMap {
-    type Handle;
-    type Error: failure::Fail;
-    type Stack;
-    fn open_raw<'a, T: ResourceType + 'a, F: FormatFor<Self::Handle, T>>(
-        &'a self,
-        fmt: &'a F,
-        stack: Self::Stack,
-        typ: T,
-        id: u16,
-    ) -> Fut<'a, Result<Self::Handle, Self::Error>>;
+    type Handle: AsyncRead + Unpin;
+    type Stack: Stack;
+    type Format;
+    fn format(&self) -> &Self::Format;
+    async fn open_raw(&self, stack: Self::Stack, typ: &str, id: u16, ext: &str)
+                      -> Result<Self::Handle>;
 }
 
+#[async_trait::async_trait(?Send)]
 pub trait ResourceMapList: ResourceMap {
-    fn list<'a, T: ResourceType + 'a>(
-        &'a self,
-        stack: Self::Stack,
-        typ: T,
-    ) -> Fut<'a, Result<Vec<u16>, Self::Error>>;
+    async fn list(&self, stack: Self::Stack, typ: &str) -> Result<Vec<u16>>;
 }
 
+#[async_trait::async_trait(?Send)]
 pub trait ResourceMapWrite: ResourceMap {
-    fn write_raw<'a, T: ResourceType + 'a, F: FormatFor<Self::Handle, T>>(
-        &'a mut self,
-        fmt: &'a F,
+    async fn write_raw(
+        &mut self,
         stack: Self::Stack,
-        typ: T,
+        typ: &str,
         id: u16,
-        data: &'a [u8],
-    ) -> Fut<'a, Result<(), Self::Error>>;
+        ext: &str,
+        data: &[u8],
+    ) -> Result<()>;
 }

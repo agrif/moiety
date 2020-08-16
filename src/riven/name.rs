@@ -1,15 +1,21 @@
-use super::Resource;
-use crate::{
-    filesystem::AsyncRead,
-    future::*,
-    mhk::{
-        deserialize_from,
-        deserialize_vec_from,
-    },
-    FormatFor,
-    MhkError,
-    MhkFormat,
+use crate::{Record, ResourceType, Format};
+use crate::mhk::{MhkFormat, deserialize_from, deserialize_vec_from};
+
+use anyhow::Result;
+use serde_derive::{Deserialize, Serialize};
+use smol::io::{
+    BufReader, AsyncRead, AsyncBufReadExt, AsyncSeek, AsyncSeekExt, SeekFrom,
 };
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TName;
+
+impl ResourceType for TName {
+    type Data = Record<Vec<Name>>;
+    fn name(&self) -> &str {
+        "NAME"
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -18,38 +24,36 @@ pub struct Name {
     pub name: String,
 }
 
-impl<R> FormatFor<R, Resource<Vec<Name>>> for MhkFormat
+#[async_trait::async_trait(?Send)]
+impl<I> Format<TName, I, Record<Vec<Name>>> for MhkFormat
 where
-    R: AsyncRead,
+    I: AsyncRead + AsyncSeek + Unpin,
 {
-    fn convert<'a>(&'a self, input: R) -> Fut<'a, Result<Vec<Name>, MhkError>>
-    where
-        R: 'a,
+    async fn parse(&self, _res: &TName, input: &mut I)
+                   -> Result<Record<Vec<Name>>>
     {
-        fut!({
-            let mut pos = 0;
-            let field_count: u16 = await!(deserialize_from(&input, &mut pos))?;
-            let offsets: Vec<u16> = await!(deserialize_vec_from(
-                &input,
-                &mut pos,
-                field_count as usize
-            ))?;
-            let values: Vec<u16> = await!(deserialize_vec_from(
-                &input,
-                &mut pos,
-                field_count as usize
-            ))?;
-            let mut ret = Vec::with_capacity(offsets.len());
-            for (offs, val) in offsets.iter().zip(values) {
-                let mut name = Vec::new();
-                await!(input.read_until_at(pos + *offs as u64, 0, &mut name))?;
-                ret.push(Name {
-                    unknown: val,
-                    name: String::from_utf8_lossy(&name[..name.len() - 1])
-                        .into_owned(),
-                });
-            }
-            Ok(ret)
-        })
+        let mut bufinput = BufReader::new(input);
+        let field_count: u16 = deserialize_from(&mut bufinput).await?;
+        let offsets: Vec<u16> = deserialize_vec_from(
+            &mut bufinput,
+            field_count as usize
+        ).await?;
+        let values: Vec<u16> = deserialize_vec_from(
+            &mut bufinput,
+            field_count as usize
+        ).await?;
+        let mut ret = Vec::with_capacity(offsets.len());
+        let start = bufinput.seek(SeekFrom::Current(0)).await?;
+        for (offs, val) in offsets.iter().zip(values) {
+            let mut name = Vec::new();
+            bufinput.seek(SeekFrom::Start(start + *offs as u64)).await?;
+            bufinput.read_until(0, &mut name).await?;
+            ret.push(Name {
+                unknown: val,
+                name: String::from_utf8_lossy(&name[..name.len() - 1])
+                    .into_owned(),
+            });
+        }
+        Ok(Record(ret))
     }
 }

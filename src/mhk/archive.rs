@@ -1,21 +1,23 @@
-use super::{
-    chunks::*,
-    utility::*,
-    MhkError,
+use super::chunks::{
+    MHWK, RSRC, TypeTableEntry, ResourceTableEntry,
+    FileTableEntry,
 };
-use crate::filesystem::{
-    AsyncRead,
-    Buffered,
-    Narrow,
+use super::utility::{
+    deserialize_from, deserialize_u16_table_from, deserialize_u32_table_from,
 };
+use super::error::MhkError;
+use super::narrow::Narrow;
+
 use std::collections::HashMap;
 
+use anyhow::Result;
+use smol::io::{
+    AsyncRead, AsyncSeek, AsyncSeekExt, SeekFrom, BufReader,
+};
+
 #[derive(Debug)]
-pub struct MhkArchive<R>
-where
-    R: AsyncRead,
-{
-    pub handle: std::rc::Rc<Buffered<R>>,
+pub struct MhkArchive<R: AsyncRead> {
+    pub handle: std::rc::Rc<std::cell::RefCell<(u64, BufReader<R>)>>,
     pub files: Vec<FileInfo>,
     pub resources: HashMap<String, HashMap<u16, ResourceInfo>>,
 }
@@ -35,52 +37,58 @@ pub struct ResourceInfo {
 
 impl<R> MhkArchive<R>
 where
-    R: AsyncRead,
+    R: AsyncRead + AsyncSeek + Unpin,
 {
-    pub async fn new(unbuffered_handle: R) -> Result<Self, MhkError> {
-        let handle = unbuffered_handle.buffer(8192);
+    pub async fn new(unbuffered_handle: R) -> Result<Self> {
+        let mut handle = BufReader::new(unbuffered_handle);
 
         // do some sanity checks and load in the basic info
-        let mut pos = 0;
-
-        let mhwk: MHWK = await!(deserialize_from(&handle, &mut pos))?;
+        let mhwk: MHWK = deserialize_from(&mut handle).await?;
         if mhwk.signature != "MHWK".as_bytes() {
-            return Err(MhkError::InvalidFormat("bad signature (MHWK)"));
+            anyhow::bail!(MhkError::InvalidFormat("bad signature (MHWK)"));
         }
 
-        let rsrc: RSRC = await!(deserialize_from(&handle, &mut pos))?;
+        let rsrc: RSRC = deserialize_from(&mut handle).await?;
         if rsrc.signature != "RSRC".as_bytes() {
-            return Err(MhkError::InvalidFormat("bad signature (RSRC)"));
+            anyhow::bail!(MhkError::InvalidFormat("bad signature (RSRC)"));
         }
 
         // go to the resource dir
-        pos = rsrc.resource_dir_offset as u64;
+        handle.seek(SeekFrom::Start(rsrc.resource_dir_offset as u64)).await?;
 
         // this one is a weirdo, right at the beginning of the resource dir
-        let _name_list_offset: u16 =
-            await!(deserialize_from(&handle, &mut pos))?;
+        let _name_list_offset: u16 = deserialize_from(&mut handle).await?;
 
         // read in the type table
         let type_table: Vec<TypeTableEntry> =
-            await!(deserialize_u16_table_from(&handle, &mut pos))?;
+            deserialize_u16_table_from(&mut handle).await?;
 
         // go and read the name and resource tables for each type
-        // let mut name_tables: Vec<Vec<NameTableEntry>> = Vec::with_capacity(type_table.len());
+        // let mut name_tables: Vec<Vec<NameTableEntry>> =
+        //     Vec::with_capacity(type_table.len());
         let mut resource_tables: Vec<Vec<ResourceTableEntry>> =
             Vec::with_capacity(type_table.len());
         for entry in &type_table {
-            pos = rsrc.resource_dir_offset as u64
-                + entry.resource_table_offset as u64;
+            handle.seek(SeekFrom::Start(
+                rsrc.resource_dir_offset as u64 +
+                    entry.resource_table_offset as u64
+            )).await?;
             resource_tables
-                .push(await!(deserialize_u16_table_from(&handle, &mut pos))?);
-            // pos = rsrc.resource_dir_offset as u64 + entry.name_table_offset as u64;
-            // name_tables.push(await!(deserialize_u16_table_from(&handle, &mut pos))?);
+                .push(deserialize_u16_table_from(&mut handle).await?);
+            // handle.seek(SeekFrom::Start(
+            //     rsrc.resource_dir_offset as u64 +
+            //         entry.name_table_offset as u64
+            // )).await?;
+            // name_tables.push(deserialize_u16_table_from(&mut handle).await?);
         }
 
         // go to the file table and read it in
-        pos = rsrc.resource_dir_offset as u64 + rsrc.file_table_offset as u64;
+        handle.seek(SeekFrom::Start(
+            rsrc.resource_dir_offset as u64 +
+                rsrc.file_table_offset as u64
+        )).await?;
         let file_table: Vec<FileTableEntry> =
-            await!(deserialize_u32_table_from(&handle, &mut pos))?;
+            deserialize_u32_table_from(&mut handle).await?;
 
         // convert the file table into something more useful for us
         let files: Vec<FileInfo> = file_table
@@ -103,7 +111,7 @@ where
 
             for rentry in resource_table {
                 if rentry.file_table_index as usize - 1 >= files.len() {
-                    return Err(MhkError::InvalidFormat(
+                    anyhow::bail!(MhkError::InvalidFormat(
                         "bad file table index",
                     ));
                 }
@@ -121,26 +129,27 @@ where
             resources.insert(ty, ids);
         }
 
+        let pos = handle.seek(SeekFrom::Current(0)).await?;
+
         Ok(MhkArchive {
-            handle: std::rc::Rc::new(handle),
+            handle: std::rc::Rc::new(std::cell::RefCell::new((pos, handle))),
             files,
             resources,
         })
     }
 
-    pub fn open<T>(
+    pub fn open(
         &self,
-        typ: T,
+        typ: &str,
         i: u16,
-    ) -> Result<Narrow<std::rc::Rc<Buffered<R>>>, MhkError>
-    where
-        T: crate::ResourceType,
+    ) -> Result<Narrow<BufReader<R>>>
     {
         self.resources
-            .get(typ.name())
+            .get(typ)
             .and_then(|e| e.get(&i))
             .and_then(|info| self.files.get(info.file_table_index))
-            .map(|info| self.handle.narrow(info.offset, info.size))
-            .ok_or(MhkError::ResourceNotFound(None, typ.name(), i))
+            .map(|info| Narrow::new(self.handle.clone(),
+                                    info.offset, info.size))
+            .ok_or(MhkError::ResourceNotFound(None, typ.to_owned(), i).into())
     }
 }
