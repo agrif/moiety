@@ -7,14 +7,23 @@ pub use blst::*;
 mod card;
 pub use card::*;
 
+mod flst;
+pub use flst::*;
+
 mod hspt;
 pub use hspt::*;
+
+mod mlst;
+pub use mlst::*;
 
 mod name;
 pub use name::*;
 
 mod plst;
 pub use plst::*;
+
+mod rmap;
+pub use rmap::*;
 
 mod tbmp;
 pub use tbmp::*;

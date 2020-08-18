@@ -21,9 +21,12 @@ fn main() -> anyhow::Result<()> {
 
         rs.write_to(&mut outrs, riven::TBlst).await?;
         rs.write_to(&mut outrs, riven::TCard).await?;
+        rs.write_to(&mut outrs, riven::TFlst).await?;
         rs.write_to(&mut outrs, riven::THspt).await?;
+        rs.write_to(&mut outrs, riven::TMlst).await?;
         rs.write_to(&mut outrs, riven::TName).await?;
         rs.write_to(&mut outrs, riven::TPlst).await?;
+        rs.write_to(&mut outrs, riven::TRmap).await?;
         rs.write_to(&mut outrs, riven::TBmp).await?;
         Ok(())
     })
