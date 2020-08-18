@@ -25,6 +25,9 @@ pub use plst::*;
 mod rmap;
 pub use rmap::*;
 
+mod sfxe;
+pub use sfxe::*;
+
 mod tbmp;
 pub use tbmp::*;
 
