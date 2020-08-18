@@ -7,6 +7,9 @@ pub use blst::*;
 mod card;
 pub use card::*;
 
+mod hspt;
+pub use hspt::*;
+
 mod name;
 pub use name::*;
 
