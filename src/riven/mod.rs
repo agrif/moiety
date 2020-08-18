@@ -28,6 +28,9 @@ pub use rmap::*;
 mod sfxe;
 pub use sfxe::*;
 
+mod slst;
+pub use slst::*;
+
 mod tbmp;
 pub use tbmp::*;
 

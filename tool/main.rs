@@ -28,6 +28,7 @@ fn main() -> anyhow::Result<()> {
         rs.write_to(&mut outrs, riven::TPlst).await?;
         rs.write_to(&mut outrs, riven::TRmap).await?;
         rs.write_to(&mut outrs, riven::TSfxe).await?;
+        rs.write_to(&mut outrs, riven::TSlst).await?;
         rs.write_to(&mut outrs, riven::TBmp).await?;
         Ok(())
     })
