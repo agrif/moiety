@@ -2,7 +2,7 @@ use super::{MhkArchive, MhkError, MhkFormat, Narrow};
 use crate::filesystem::Filesystem;
 
 use anyhow::Result;
-use smol::io::{AsyncSeek, BufReader};
+use smol::io::BufReader;
 
 use crate::{ResourceMap, ResourceMapList, Stack};
 use std::collections::HashMap;
@@ -19,7 +19,6 @@ where
 impl<F, S> MhkMap<F, S>
 where
     F: Filesystem,
-    F::Handle: AsyncSeek,
     S: Stack + Copy,
 {
     pub fn new(filesystem: F, stackfiles: HashMap<S, Vec<&str>>) -> Self {
@@ -61,7 +60,6 @@ where
 impl<F, S> ResourceMap for MhkMap<F, S>
 where
     F: Filesystem,
-    F::Handle: AsyncSeek,
     S: Stack + Copy,
 {
     type Handle = Narrow<BufReader<F::Handle>>;
@@ -100,7 +98,6 @@ where
 impl<F, S> ResourceMapList for MhkMap<F, S>
 where
     F: Filesystem,
-    F::Handle: AsyncSeek,
     S: Stack + Copy,
 {
     async fn list(&mut self, stack: <Self as ResourceMap>::Stack, typ: &str) -> Result<Vec<u16>> {
