@@ -1,13 +1,8 @@
-use super::{
-    MhkArchive,
-    MhkFormat,
-    MhkError,
-    Narrow,
-};
+use super::{MhkArchive, MhkError, MhkFormat, Narrow};
 use crate::filesystem::Filesystem;
 
 use anyhow::Result;
-use smol::io::{BufReader, AsyncSeek};
+use smol::io::{AsyncSeek, BufReader};
 
 use crate::{ResourceMap, ResourceMapList, Stack};
 use std::collections::HashMap;
@@ -18,7 +13,7 @@ where
 {
     filesystem: F,
     stackfiles: HashMap<S, Vec<String>>,
-    stacks: std::cell::RefCell<HashMap<S, Vec<MhkArchive<F::Handle>>>>,
+    stacks: HashMap<S, Vec<MhkArchive<F::Handle>>>,
 }
 
 impl<F, S> MhkMap<F, S>
@@ -32,12 +27,9 @@ where
             filesystem,
             stackfiles: stackfiles
                 .iter()
-                .map(|(k, v)| (k.clone(), v.iter()
-                               .map(|s| (*s).to_owned()).collect()))
+                .map(|(k, v)| (k.clone(), v.iter().map(|s| (*s).to_owned()).collect()))
                 .collect(),
-            stacks: std::cell::RefCell::new(HashMap::with_capacity(
-                S::all().len(),
-            )),
+            stacks: HashMap::with_capacity(S::all().len()),
         }
     }
 
@@ -49,10 +41,9 @@ where
         }
     }
 
-    async fn ensure_stack(&self, stack: S) -> Result<()> {
-        let mut stacks = self.stacks.borrow_mut();
+    async fn ensure_stack(&mut self, stack: S) -> Result<()> {
         // make sure this stack is loaded
-        if !stacks.contains_key(&stack) {
+        if !self.stacks.contains_key(&stack) {
             let names = self.stack_file_names(stack);
             let mut archives = Vec::with_capacity(names.len());
             for n in names.iter() {
@@ -60,7 +51,7 @@ where
                 let handle = self.filesystem.open(path).await?;
                 archives.push(MhkArchive::new(handle).await?);
             }
-            stacks.insert(stack, archives);
+            self.stacks.insert(stack, archives);
         }
         Ok(())
     }
@@ -81,12 +72,15 @@ where
         &MhkFormat
     }
 
-    async fn open_raw(&self, stack: Self::Stack, typ: &str, id: u16, _ext: &str)
-                      -> Result<Self::Handle>
-    {
+    async fn open_raw(
+        &mut self,
+        stack: Self::Stack,
+        typ: &str,
+        id: u16,
+        _ext: &str,
+    ) -> Result<Self::Handle> {
         self.ensure_stack(stack).await?;
-        let stacks = self.stacks.borrow();
-        for arc in stacks.get(&stack).unwrap() {
+        for arc in self.stacks.get(&stack).unwrap() {
             let rsrc = arc.open(typ, id);
             match rsrc {
                 Ok(r) => return Ok(r),
@@ -109,13 +103,10 @@ where
     F::Handle: AsyncSeek,
     S: Stack + Copy,
 {
-    async fn list(&self, stack: <Self as ResourceMap>::Stack, typ: &str)
-                  -> Result<Vec<u16>>
-    {
+    async fn list(&mut self, stack: <Self as ResourceMap>::Stack, typ: &str) -> Result<Vec<u16>> {
         self.ensure_stack(stack).await?;
-        let stacks = self.stacks.borrow();
         let mut ret = vec![];
-        for arc in stacks.get(&stack).unwrap() {
+        for arc in self.stacks.get(&stack).unwrap() {
             if let Some(rs) = arc.resources.get(typ) {
                 for (id, _) in rs {
                     ret.push(*id);

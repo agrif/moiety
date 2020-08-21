@@ -17,19 +17,19 @@ impl<M> Resources<M> where M: ResourceMap {
         }
     }
 
-    pub async fn open_raw<R>(&self, stack: M::Stack, typ: R, id: u16)
+    pub async fn open_raw<R>(&mut self, stack: M::Stack, typ: R, id: u16)
                              -> Result<M::Handle>
     where
         R: ResourceType,
         M::Format: Format<R, M::Handle, R::Data>,
     {
         let fmt = self.map.format();
-        let extension = fmt.extension(&typ).unwrap_or("");
-        let handle = self.map.open_raw(stack, typ.name(), id, extension).await?;
+        let extension = fmt.extension(&typ).unwrap_or("").to_owned();
+        let handle = self.map.open_raw(stack, typ.name(), id, &extension).await?;
         Ok(handle)
     }
 
-    pub async fn open<R>(&self, stack: M::Stack, typ: R, id: u16)
+    pub async fn open<R>(&mut self, stack: M::Stack, typ: R, id: u16)
                          -> Result<R::Data>
     where
         R: ResourceType,
@@ -41,7 +41,7 @@ impl<M> Resources<M> where M: ResourceMap {
     }
 
     pub async fn write_resource_to<R, Mw>(
-        &self,
+        &mut self,
         other: &mut Resources<Mw>,
         stack: M::Stack,
         typ: R,
@@ -65,7 +65,7 @@ impl<M> Resources<M> where M: ResourceMap {
     }
 
     pub async fn write_stack_to<R, Mw>(
-        &self,
+        &mut self,
         other: &mut Resources<Mw>,
         stack: M::Stack,
         typ: R,
@@ -85,7 +85,7 @@ impl<M> Resources<M> where M: ResourceMap {
     }
 
     pub async fn write_to<R, Mw>(
-        &self,
+        &mut self,
         other: &mut Resources<Mw>,
         typ: R,
     ) -> Result<()>

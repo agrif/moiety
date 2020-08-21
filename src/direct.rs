@@ -34,14 +34,14 @@ where
         &self.format
     }
 
-    async fn open_raw(&self, stack: Self::Stack, typ: &str, id: u16, ext: &str)
-                      -> Result<Self::Handle>
-    {
-        let fname = [
-            stack.name(),
-            typ,
-            &format!("{:05}{}", id, ext),
-        ];
+    async fn open_raw(
+        &mut self,
+        stack: Self::Stack,
+        typ: &str,
+        id: u16,
+        ext: &str,
+    ) -> Result<Self::Handle> {
+        let fname = [stack.name(), typ, &format!("{:05}{}", id, ext)];
         self.filesystem.open(&fname).await
     }
 }
@@ -59,13 +59,8 @@ where
         id: u16,
         ext: &str,
         data: &[u8],
-    ) -> Result<()>
-    {
-        let fname = [
-            stack.name(),
-            typ,
-            &format!("{:05}{}", id, ext),
-        ];
+    ) -> Result<()> {
+        let fname = [stack.name(), typ, &format!("{:05}{}", id, ext)];
         self.filesystem.write(&fname, data).await
     }
 }

@@ -17,7 +17,7 @@ impl LocalFilesystem {
 #[async_trait::async_trait(?Send)]
 impl super::Filesystem for LocalFilesystem {
     type Handle = smol::Unblock<std::fs::File>;
-    async fn open(&self, path: &[&str]) -> Result<Self::Handle> {
+    async fn open(&mut self, path: &[&str]) -> Result<Self::Handle> {
         let mut subpath = self.root.clone();
         for part in path {
             subpath.push(part);

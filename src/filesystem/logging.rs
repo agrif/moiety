@@ -26,7 +26,7 @@ where
 {
     type Handle = T::Handle;
 
-    async fn open(&self, path: &[&str]) -> Result<Self::Handle> {
+    async fn open(&mut self, path: &[&str]) -> Result<Self::Handle> {
         let nicepath = format!("[{}]/{}", self.name, path.join("/"));
         println!("opening {}", nicepath);
         self.inner.open(path).await
