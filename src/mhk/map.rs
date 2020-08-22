@@ -1,8 +1,9 @@
 use super::{MhkArchive, MhkError, MhkFormat, Narrow};
-use crate::filesystem::Filesystem;
+use super::ownedpe::OwnedPe32;
+use crate::filesystem::{Filesystem, EitherHandle};
 
 use anyhow::Result;
-use smol::io::BufReader;
+use smol::io::{AsyncRead, AsyncReadExt, BufReader, Cursor};
 
 use crate::{ResourceMap, ResourceMapList, Stack};
 use std::collections::HashMap;
@@ -13,7 +14,12 @@ where
 {
     filesystem: F,
     stackfiles: HashMap<S, Vec<String>>,
-    stacks: HashMap<S, Vec<MhkArchive<F::Handle>>>,
+    stacks: HashMap<S, Vec<Archive<F::Handle>>>,
+}
+
+enum Archive<H: AsyncRead> {
+    Mhk(MhkArchive<H>),
+    Pe32(OwnedPe32),
 }
 
 impl<F, S> MhkMap<F, S>
@@ -47,8 +53,14 @@ where
             let mut archives = Vec::with_capacity(names.len());
             for n in names.iter() {
                 let path = &[n.as_ref()];
-                let handle = self.filesystem.open(path).await?;
-                archives.push(MhkArchive::new(handle).await?);
+                let mut handle = self.filesystem.open(path).await?;
+                if n.ends_with(".exe") {
+                    let mut data = Vec::with_capacity(600000);
+                    handle.read_to_end(&mut data).await?;
+                    archives.push(Archive::Pe32(OwnedPe32::new(data)?));
+                } else {
+                    archives.push(Archive::Mhk(MhkArchive::new(handle).await?));
+                }
             }
             self.stacks.insert(stack, archives);
         }
@@ -62,7 +74,7 @@ where
     F: Filesystem,
     S: Stack + Copy,
 {
-    type Handle = Narrow<BufReader<F::Handle>>;
+    type Handle = EitherHandle<Narrow<BufReader<F::Handle>>, Cursor<Vec<u8>>>;
     type Stack = S;
     type Format = MhkFormat;
 
@@ -79,8 +91,11 @@ where
     ) -> Result<Self::Handle> {
         self.ensure_stack(stack).await?;
         for arc in self.stacks.get(&stack).unwrap() {
-            let rsrc = arc.open(typ, id);
-            match rsrc {
+            let rsrc = match arc {
+                Archive::Mhk(marc) => EitherHandle::left(marc.open(typ, id)),
+                Archive::Pe32(parc) => EitherHandle::right(parc.open(typ, id)),
+            };
+            match rsrc.factor_error() {
                 Ok(r) => return Ok(r),
                 Err(_) => (), // we should only ignore if ResourceNotFound, but
             }
@@ -104,9 +119,20 @@ where
         self.ensure_stack(stack).await?;
         let mut ret = vec![];
         for arc in self.stacks.get(&stack).unwrap() {
-            if let Some(rs) = arc.resources.get(typ) {
-                for (id, _) in rs {
-                    ret.push(*id);
+            match arc {
+                Archive::Mhk(marc) => {
+                    if let Some(rs) = marc.resources.get(typ) {
+                        for (id, _) in rs {
+                            ret.push(*id);
+                        }
+                    }
+                }
+                Archive::Pe32(parc) => {
+                    if let Some(rs) = parc.get(typ) {
+                        for id in rs {
+                            ret.push(id);
+                        }
+                    }
                 }
             }
         }

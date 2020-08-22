@@ -24,6 +24,9 @@ pub use json::*;
 mod png;
 pub use crate::png::*;
 
+mod cur;
+pub use crate::cur::*;
+
 pub mod mhk;
 pub use mhk::{
     MhkError,

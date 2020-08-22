@@ -34,6 +34,9 @@ pub use slst::*;
 mod tbmp;
 pub use tbmp::*;
 
+mod tcur;
+pub use tcur::*;
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Stack {
     A,
@@ -45,6 +48,7 @@ pub enum Stack {
     R,
     T,
     Extras,
+    Exe,
 }
 
 impl crate::Stack for Stack {
@@ -60,12 +64,13 @@ impl crate::Stack for Stack {
             R => "rspit",
             T => "tspit",
             Extras => "extras",
+            Exe => "exe",
         }
     }
 
     fn all() -> Vec<Self> {
         use Stack::*;
-        vec![A, B, G, J, O, P, R, T, Extras]
+        vec![A, B, G, J, O, P, R, T, Extras, Exe]
     }
 }
 
@@ -87,6 +92,7 @@ where
             (Stack::R, vec!["r_Data.MHK", "r_Sounds.MHK"]),
             (Stack::T, vec!["t_Data.MHK", "t_Sounds.MHK"]),
             (Stack::Extras, vec!["Extras.MHK"]),
+            (Stack::Exe, vec!["Riven.exe"]),
         ]
         .iter()
         .cloned()

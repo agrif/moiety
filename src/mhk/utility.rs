@@ -17,6 +17,21 @@ where
     Ok(data)
 }
 
+pub async fn deserialize_le_from<'a, R, T>(
+    reader: &'a mut R
+) -> Result<T>
+where
+    R: AsyncRead + Unpin,
+    T: serde::de::DeserializeOwned,
+{
+    let size = std::mem::size_of::<T>();
+    let mut buf = vec![0u8; size];
+    reader.read_exact(&mut buf).await?;
+    let data = bincode::options().with_little_endian().with_fixint_encoding()
+        .deserialize(buf.as_mut())?;
+    Ok(data)
+}
+
 pub async fn deserialize_vec_from<'a, R, T>(
     reader: &'a mut R,
     count: usize,

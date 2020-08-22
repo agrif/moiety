@@ -1,5 +1,5 @@
 use moiety::filesystem::{LocalFilesystem, LoggingFilesystem};
-use moiety::{DirectMap, JsonFormat, PngFormat, MixedFormat, Resources};
+use moiety::{DirectMap, JsonFormat, CurFormat, PngFormat, MixedFormat, Resources};
 use moiety::riven;
 
 fn main() -> anyhow::Result<()> {
@@ -13,6 +13,7 @@ fn main() -> anyhow::Result<()> {
         let map = riven::map_5cd(fs).await?;
         let outmap = DirectMap::new(outfs, MixedFormat {
             bitmap: PngFormat,
+            cursor: CurFormat,
             record: JsonFormat(false),
         });
 
@@ -30,6 +31,7 @@ fn main() -> anyhow::Result<()> {
         rs.write_to(&mut outrs, riven::TSfxe).await?;
         rs.write_to(&mut outrs, riven::TSlst).await?;
         rs.write_to(&mut outrs, riven::TBmp).await?;
+        rs.write_to(&mut outrs, riven::TCur).await?;
         Ok(())
     })
 }

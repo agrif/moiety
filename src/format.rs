@@ -34,13 +34,14 @@ impl<T> std::ops::DerefMut for Record<T> {
 
 // mixed-format
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct MixedFormat<B, R> {
+pub struct MixedFormat<B, C, R> {
     pub bitmap: B,
+    pub cursor: C,
     pub record: R,
 }
 
 #[async_trait::async_trait(?Send)]
-impl<Res, I, B, R> Format<Res, I, crate::Bitmap> for MixedFormat<B, R>
+impl<Res, I, B, C, R> Format<Res, I, crate::Bitmap> for MixedFormat<B, C, R>
 where
     B: Format<Res, I, crate::Bitmap>,
 {
@@ -53,8 +54,8 @@ where
 }
 
 #[async_trait::async_trait(?Send)]
-impl<Fi, Res, I, B, R> FormatWrite<Fi, Res, I, crate::Bitmap>
-    for MixedFormat<B, R>
+impl<Fi, Res, I, B, C, R> FormatWrite<Fi, Res, I, crate::Bitmap>
+    for MixedFormat<B, C, R>
 where
     Fi: Format<Res, I, crate::Bitmap>,
     B: FormatWrite<Fi, Res, I, crate::Bitmap>,
@@ -67,7 +68,34 @@ where
 }
 
 #[async_trait::async_trait(?Send)]
-impl<Res, I, B, R, T> Format<Res, I, Record<T>> for MixedFormat<B, R>
+impl<Res, I, B, C, R> Format<Res, I, crate::Cursor> for MixedFormat<B, C, R>
+where
+    C: Format<Res, I, crate::Cursor>,
+{
+    fn extension(&self, res: &Res) -> Option<&str> {
+        self.cursor.extension(res)
+    }
+    async fn parse(&self, res: &Res, input: &mut I) -> Result<crate::Cursor> {
+        self.cursor.parse(res, input).await
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+impl<Fi, Res, I, B, C, R> FormatWrite<Fi, Res, I, crate::Cursor>
+    for MixedFormat<B, C, R>
+where
+    Fi: Format<Res, I, crate::Cursor>,
+    C: FormatWrite<Fi, Res, I, crate::Cursor>,
+{
+    async fn convert(&self, fmti: &Fi, res: &Res, input: &mut I)
+                     -> Result<Vec<u8>>
+    {
+        self.cursor.convert(fmti, res, input).await
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+impl<Res, I, B, C, R, T> Format<Res, I, Record<T>> for MixedFormat<B, C, R>
 where
     R: Format<Res, I, Record<T>>,
     T: 'static,
@@ -81,8 +109,8 @@ where
 }
 
 #[async_trait::async_trait(?Send)]
-impl<Fi, Res, I, B, R, T> FormatWrite<Fi, Res, I, Record<T>>
-    for MixedFormat<B, R>
+impl<Fi, Res, I, B, C, R, T> FormatWrite<Fi, Res, I, Record<T>>
+    for MixedFormat<B, C, R>
 where
     Fi: Format<Res, I, Record<T>>,
     R: FormatWrite<Fi, Res, I, Record<T>>,

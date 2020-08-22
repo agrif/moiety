@@ -7,12 +7,21 @@ use std::task::{Context, Poll};
 pub struct EitherHandle<A, B>(either::Either<A, B>);
 
 impl<A, B> EitherHandle<A, B> {
-    pub(crate) fn left(a: A) -> Self {
+    pub fn left(a: A) -> Self {
         EitherHandle(either::Left(a))
     }
 
-    pub(crate) fn right(b: B) -> Self {
+    pub fn right(b: B) -> Self {
         EitherHandle(either::Right(b))
+    }
+}
+
+impl<A, B, E> EitherHandle<Result<A, E>, Result<B, E>> {
+    pub fn factor_error(self) -> Result<EitherHandle<A, B>, E> {
+        match self.0 {
+            either::Left(h) => h.map(EitherHandle::left),
+            either::Right(h) => h.map(EitherHandle::right),
+        }
     }
 }
 
