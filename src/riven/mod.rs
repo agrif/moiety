@@ -78,7 +78,7 @@ pub async fn map_5cd<F>(mut fs: F) -> anyhow::Result<impl crate::ResourceMapList
 where
     F: crate::filesystem::Filesystem,
 {
-    let arcriven = smol::io::BlockOn::new(fs.open(&["arcriven.z"]).await?);
+    let arcriven = fs.open(&["arcriven.z"]).await?;
     let z = crate::filesystem::ZArchive::new(arcriven).await?;
     Ok(crate::mhk::MhkMap::new(
         (z, fs),
