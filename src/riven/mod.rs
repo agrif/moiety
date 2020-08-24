@@ -1,3 +1,8 @@
+use crate::{Format, ResourceType};
+
+mod game;
+pub use game::*;
+
 mod script;
 pub use script::*;
 
@@ -74,7 +79,23 @@ impl crate::Stack for Stack {
     }
 }
 
-pub async fn map_5cd<F>(mut fs: F) -> anyhow::Result<impl crate::ResourceMapList<Format=crate::mhk::MhkFormat, Stack=Stack>>
+pub trait RivenFormat<I>:
+    Format<TCard, I, <TCard as ResourceType>::Data>
+    + Format<TPlst, I, <TPlst as ResourceType>::Data>
+    + Format<TBmp, I, <TBmp as ResourceType>::Data>
+{
+}
+
+impl<F, I> RivenFormat<I> for F where
+    F: Format<TCard, I, <TCard as ResourceType>::Data>
+        + Format<TPlst, I, <TPlst as ResourceType>::Data>
+        + Format<TBmp, I, <TBmp as ResourceType>::Data>
+{
+}
+
+pub async fn map_5cd<F>(
+    mut fs: F,
+) -> anyhow::Result<impl crate::ResourceMapList<Format = crate::mhk::MhkFormat, Stack = Stack>>
 where
     F: crate::filesystem::Filesystem,
 {

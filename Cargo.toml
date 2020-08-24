@@ -3,7 +3,7 @@ name = "moiety"
 version = "0.1.0"
 authors = ["Aaron Griffith <aargri@gmail.com>"]
 edition = "2018"
-default-run = "vahttool"
+default-run = "moiety"
 
 [features]
 default = []
@@ -24,8 +24,14 @@ smol = "0.3"
 thiserror = "1.0"
 unshield = { version = "0.2", features = ["async"] }
 
+sdl2 = { version = "0.34", features = ["bundled"] }
+
 [lib]
 path = "src/lib.rs"
+
+[[bin]]
+name = "moiety"
+path = "src/main.rs"
 
 [[bin]]
 name = "vahttool"

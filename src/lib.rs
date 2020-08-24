@@ -37,4 +37,9 @@ pub use mhk::{
 mod bitmap;
 pub use bitmap::*;
 
+mod game;
+pub use game::*;
+
+pub mod sdl;
+
 pub mod riven;
